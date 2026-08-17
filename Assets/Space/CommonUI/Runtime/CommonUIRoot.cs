@@ -77,9 +77,15 @@ namespace SpaceGame.CommonUI
 
             var bindingRepository =
                 new PlayerPrefsInputBindingOverrideRepository();
-            InputBindingOverrideUtility.Restore(
+            string storedBindingOverrides = bindingRepository.LoadJson();
+            string normalizedBindingOverrides =
+                InputBindingOverrideUtility.RestoreAndNormalize(
                 inputBindingCatalog,
-                bindingRepository.LoadJson());
+                storedBindingOverrides);
+            if (storedBindingOverrides != normalizedBindingOverrides)
+            {
+                bindingRepository.SaveJson(normalizedBindingOverrides);
+            }
 
             var settingsCoordinator = new SettingsCoordinator(
                 new PlayerPrefsSettingsRepository(),
@@ -98,12 +104,7 @@ namespace SpaceGame.CommonUI
 
             settingsWindow.Initialize(context);
             keyInfoWindow.Initialize(context);
-            tutorialPanel.Initialize(context);
-        }
-
-        private void Start()
-        {
-            tutorialPanel.TryOpenOnStart();
+            DisableTutorialFeature();
         }
 
         public void OpenSettings()
@@ -118,7 +119,15 @@ namespace SpaceGame.CommonUI
 
         public void OpenTutorial()
         {
-            tutorialPanel.Open();
+            DisableTutorialFeature();
+        }
+
+        private void DisableTutorialFeature()
+        {
+            if (tutorialPanel != null)
+            {
+                tutorialPanel.gameObject.SetActive(false);
+            }
         }
     }
 }

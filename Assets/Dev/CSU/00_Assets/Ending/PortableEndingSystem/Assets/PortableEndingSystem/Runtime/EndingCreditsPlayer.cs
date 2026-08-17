@@ -32,10 +32,17 @@ namespace PortableEndingSystem
         [Header("End UI")]
         [SerializeField] private CanvasGroup endActions;
         [SerializeField] private Button exitButton;
+        [SerializeField] private TMP_Text cancelHintText;
 
         [Header("Transition and Audio")]
         [SerializeField] private CanvasGroup sceneFadeOverlay;
         [SerializeField] private AudioSource bgmSource;
+
+#if ENABLE_INPUT_SYSTEM
+        [Header("Input")]
+        [SerializeField] private InputActionAsset inputActions;
+        [SerializeField] private string cancelActionPath = "Common/Cancel";
+#endif
 
         private readonly List<Image> generatedPhotoImages = new List<Image>();
         private Coroutine creditsRoutine;
@@ -46,6 +53,13 @@ namespace PortableEndingSystem
         private bool hasReachedEnd;
         private bool isRecalculatingLayout;
         private bool isExiting;
+        private bool useCancelFallback;
+        private bool hasWarnedAboutCancelFallback;
+
+#if ENABLE_INPUT_SYSTEM
+        private InputAction cancelAction;
+        private bool cancelActionEnabledByThisComponent;
+#endif
 
         public bool IsInitialized => isInitialized;
         public bool HasReachedEnd => hasReachedEnd;
@@ -70,6 +84,7 @@ namespace PortableEndingSystem
         {
             exitButton?.onClick.RemoveListener(RequestExit);
             exitButton?.onClick.AddListener(RequestExit);
+            InitializeCancelInput();
 
             if (ValidateSetup(out string message) == false)
             {
@@ -84,6 +99,7 @@ namespace PortableEndingSystem
         private void OnDisable()
         {
             exitButton?.onClick.RemoveListener(RequestExit);
+            ReleaseCancelInput();
             StopAllCoroutines();
             creditsRoutine = null;
 
@@ -96,7 +112,7 @@ namespace PortableEndingSystem
 
         private void Update()
         {
-            if (data != null && data.AllowEscapeExit && WasEscapePressed())
+            if (data != null && data.AllowEscapeExit && WasCancelPressed())
             {
                 RequestExit();
             }
@@ -322,6 +338,7 @@ namespace PortableEndingSystem
             isRecalculatingLayout = true;
             try
             {
+                creditsText.textWrappingMode = TextWrappingModes.PreserveWhitespaceNoWrap;
                 creditsText.text = CreateStyledCredits();
                 RebuildPhotoViews();
                 float layoutScale = ApplyResponsiveHorizontalLayout();
@@ -376,21 +393,22 @@ namespace PortableEndingSystem
             string[] lines = normalized.Split('\n');
             string developer = data.DeveloperName;
             string title = data.GameTitle;
-            string highlightTag = CreateDeveloperHighlightTag(developer);
+            string developerTag = CreateDeveloperNameTag(developer);
             StringBuilder builder = new StringBuilder(normalized.Length * 2);
 
             for (int index = 0; index < lines.Length; index++)
             {
-                string sourceLine = lines[index].Trim();
-                if (sourceLine.Length > 0)
+                string sourceLine = lines[index];
+                string classificationLine = sourceLine.Trim();
+                if (classificationLine.Length > 0)
                 {
-                    bool containsDeveloperPlaceholder = sourceLine.Contains("{DEVELOPER_NAME}");
-                    string resolvedLine = sourceLine
+                    bool containsDeveloperPlaceholder = classificationLine.Contains("{DEVELOPER_NAME}");
+                    string resolvedLine = classificationLine
                         .Replace("{GAME_TITLE}", title)
                         .Replace("{DEVELOPER_NAME}", developer);
                     string styledLine = EscapeRichText(sourceLine)
                         .Replace("{GAME_TITLE}", EscapeRichText(title))
-                        .Replace("{DEVELOPER_NAME}", highlightTag);
+                        .Replace("{DEVELOPER_NAME}", developerTag);
 
                     if (resolvedLine == "THE END" || resolvedLine == "THANK YOU FOR PLAYING")
                     {
@@ -400,7 +418,7 @@ namespace PortableEndingSystem
                     {
                         builder.Append("<size=58><b>").Append(styledLine).Append("</b></size>");
                     }
-                    else if (containsDeveloperPlaceholder && sourceLine == "{DEVELOPER_NAME}")
+                    else if (containsDeveloperPlaceholder && classificationLine == "{DEVELOPER_NAME}")
                     {
                         builder.Append("<size=40>").Append(styledLine).Append("</size>");
                     }
@@ -413,6 +431,10 @@ namespace PortableEndingSystem
                         builder.Append("<size=27>").Append(styledLine).Append("</size>");
                     }
                 }
+                else if (sourceLine.Length > 0)
+                {
+                    builder.Append(sourceLine);
+                }
 
                 if (index < lines.Length - 1)
                 {
@@ -423,11 +445,9 @@ namespace PortableEndingSystem
             return builder.ToString();
         }
 
-        private string CreateDeveloperHighlightTag(string developer)
+        private static string CreateDeveloperNameTag(string developer)
         {
-            string markColor = ColorUtility.ToHtmlStringRGBA(data.NameHighlightColor);
-            string textColor = ColorUtility.ToHtmlStringRGBA(data.HighlightedNameTextColor);
-            return $"<mark=#{markColor}><color=#{textColor}><b>{EscapeRichText(developer)}</b></color></mark>";
+            return $"<b>{EscapeRichText(developer)}</b>";
         }
 
         private void RebuildPhotoViews()
@@ -655,12 +675,122 @@ namespace PortableEndingSystem
         private static string EscapeRichText(string value)
         {
             return (value ?? string.Empty)
-                .Replace("&", "&amp;")
                 .Replace("<", "&lt;")
                 .Replace(">", "&gt;");
         }
 
-        private static bool WasEscapePressed()
+        private void InitializeCancelInput()
+        {
+            useCancelFallback = false;
+
+#if ENABLE_INPUT_SYSTEM
+            cancelAction = null;
+            cancelActionEnabledByThisComponent = false;
+
+            if (inputActions != null && string.IsNullOrWhiteSpace(cancelActionPath) == false)
+            {
+                cancelAction = inputActions.FindAction(cancelActionPath, false);
+            }
+
+            if (cancelAction != null)
+            {
+                if (cancelAction.enabled == false)
+                {
+                    cancelAction.Enable();
+                    cancelActionEnabledByThisComponent = true;
+                }
+
+                RefreshCancelHint();
+                return;
+            }
+#endif
+
+            useCancelFallback = true;
+            RefreshCancelHint();
+            WarnAboutCancelFallback();
+        }
+
+        private void RefreshCancelHint()
+        {
+            if (cancelHintText == null)
+            {
+                return;
+            }
+
+            string bindingDisplay = "ESC";
+#if ENABLE_INPUT_SYSTEM
+            if (cancelAction != null)
+            {
+                string resolvedDisplay =
+                    cancelAction.GetBindingDisplayString(
+                        InputBinding.MaskByGroup("Keyboard&Mouse"),
+                        InputBinding.DisplayStringOptions
+                            .DontIncludeInteractions);
+                if (string.IsNullOrWhiteSpace(resolvedDisplay) == false)
+                {
+                    bindingDisplay = resolvedDisplay;
+                }
+            }
+#endif
+
+            cancelHintText.SetText($"{bindingDisplay}: 엔딩 나가기");
+        }
+
+        private void ReleaseCancelInput()
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (cancelActionEnabledByThisComponent &&
+                cancelAction != null &&
+                cancelAction.enabled)
+            {
+                cancelAction.Disable();
+            }
+
+            cancelAction = null;
+            cancelActionEnabledByThisComponent = false;
+#endif
+
+            useCancelFallback = false;
+        }
+
+        private bool WasCancelPressed()
+        {
+#if ENABLE_INPUT_SYSTEM
+            if (cancelAction != null)
+            {
+                return cancelAction.WasPressedThisFrame();
+            }
+#endif
+
+            return useCancelFallback && WasFallbackEscapePressed();
+        }
+
+        private void WarnAboutCancelFallback()
+        {
+            if (hasWarnedAboutCancelFallback)
+            {
+                return;
+            }
+
+            hasWarnedAboutCancelFallback = true;
+
+#if ENABLE_INPUT_SYSTEM
+            string reason = inputActions == null
+                ? $"no {nameof(InputActionAsset)} is assigned"
+                : $"action '{cancelActionPath}' was not found in '{inputActions.name}'";
+            Debug.LogWarning(
+                $"{nameof(EndingCreditsPlayer)} on '{name}' has {reason}. " +
+                "Ending cancel temporarily falls back to the Escape key.",
+                this);
+#else
+            Debug.LogWarning(
+                $"{nameof(EndingCreditsPlayer)} on '{name}' cannot use the Input System. " +
+                "Ending cancel temporarily falls back to the Escape key.",
+                this);
+#endif
+        }
+
+        private static bool WasFallbackEscapePressed()
         {
 #if ENABLE_INPUT_SYSTEM
             Keyboard keyboard = Keyboard.current;

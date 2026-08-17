@@ -12,9 +12,16 @@ namespace Dev.NKY.Scripts
     }
     public class PlayerStats : MonoBehaviour
     {
-        private const string SavedStatsPrefix = "SpaceGame.PlayerStats.";
-        private const string SavedStatsInitializedKey = SavedStatsPrefix + "Initialized";
         public const float DefaultStatValue = 100f;
+        public const float MinimumPartPercent = -0.75f;
+        public const float MaximumPartPercent = 1f;
+        public const float MaximumPermanentEngineStat = 150f;
+        public const float MaximumEffectiveEngineStat = 200f;
+
+        private const float MinimumEngine = 25f;
+        private const float MinimumFuel = 20f;
+        private const float MinimumArmor = 10f;
+        private const float MinimumDrill = 50f;
 
         [SerializeField] private InventoryGrid grid; // ★ 그리드 자동 연동용 참조
         [SerializeField] private List<BaseStats> baseStats; // 인스펙터 기본값 목록
@@ -24,6 +31,9 @@ namespace Dev.NKY.Scripts
         private readonly Dictionary<StatType, float> flatSum = new Dictionary<StatType, float>();
         private readonly Dictionary<StatType, float> percentSum = new Dictionary<StatType, float>();
 
+        private static readonly Dictionary<StatType, float>
+            sessionFlightStats = new Dictionary<StatType, float>();
+        private static bool hasSessionFlightStats;
 
         public Dictionary<StatType, float> FinalStats { get; private set; } =
             new Dictionary<StatType, float>();
@@ -35,7 +45,30 @@ namespace Dev.NKY.Scripts
         {
             InitializeBaseValues();
             LoadSavedValues();
+            CaptureSessionFlightStats();
         }
+
+        [RuntimeInitializeOnLoadMethod(
+            RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetSessionFlightStats()
+        {
+            sessionFlightStats.Clear();
+            hasSessionFlightStats = false;
+        }
+
+#if UNITY_INCLUDE_TESTS
+        public static void ResetSessionFlightStatsForTests()
+        {
+            ResetSessionFlightStats();
+        }
+
+        public void InitializeForTests()
+        {
+            InitializeBaseValues();
+            LoadSavedValues();
+            CaptureSessionFlightStats();
+        }
+#endif
 
         /// <summary>
         /// ★ [핵심] baseStats 리스트의 값들을 StatType Enum에 맞춰 baseValues Dictionary에 넣어줍니다.
@@ -62,19 +95,19 @@ namespace Dev.NKY.Scripts
  
         private void LoadSavedValues()
         {
-            if (PlayerPrefs.GetInt(SavedStatsInitializedKey, 0) == 0)
-            {
-                SaveCurrentStats();
-                return;
-            }
+            Dictionary<StatType, float> savedValues =
+                PlayerProgressPersistence.Default.LoadBaseStats(baseValues);
 
             foreach (StatType type in Enum.GetValues(typeof(StatType)))
             {
                 float fallback = baseValues.TryGetValue(type, out float value)
                     ? value
                     : DefaultStatValue;
-                float savedValue = PlayerPrefs.GetFloat(GetSavedStatKey(type), fallback);
-                baseValues[type] = IsValidStat(savedValue) ? savedValue : fallback;
+                baseValues[type] = savedValues.TryGetValue(
+                    type,
+                    out float savedValue)
+                    ? savedValue
+                    : fallback;
             }
         }
 
@@ -84,23 +117,89 @@ namespace Dev.NKY.Scripts
             float flat = flatSum.TryGetValue(type, out var f) ? f : 0f;
             float percent = percentSum.TryGetValue(type, out var p) ? p : 0f;
 
-            float finalVal = (baseVal + flat) * (1f + percent);
+            percent = Mathf.Clamp(
+                IsFinite(percent) ? percent : 0f,
+                MinimumPartPercent,
+                MaximumPartPercent);
+            float additiveValue = IsFinite(baseVal + flat)
+                ? baseVal + flat
+                : DefaultStatValue;
+            float finalVal = additiveValue * (1f + percent);
+            float minimum = GetSafetyMinimum(type);
 
-            if (minValues == null)
+            if (minValues != null)
             {
-                return finalVal;
-            }
-
-            foreach (var minValue in minValues)
-            {
-                if (type == minValue.Type)
+                foreach (var minValue in minValues)
                 {
-                    if(finalVal < minValue.Value)
-                        finalVal = minValue.Value;
+                    if (type == minValue.Type && IsFinite(minValue.Value))
+                    {
+                        minimum = Mathf.Max(minimum, minValue.Value);
+                    }
                 }
             }
-            
-            return finalVal;
+
+            float boundedValue = Mathf.Max(minimum, finalVal);
+            float maximum = GetSafetyMaximum(type);
+            return float.IsPositiveInfinity(maximum)
+                ? boundedValue
+                : Mathf.Min(maximum, boundedValue);
+        }
+
+        public float GetBaseStat(StatType type)
+        {
+            return baseValues.TryGetValue(type, out float value)
+                ? value
+                : DefaultStatValue;
+        }
+
+        private static float GetSafetyMinimum(StatType type)
+        {
+            return type switch
+            {
+                StatType.Engine => MinimumEngine,
+                StatType.Fuel => MinimumFuel,
+                StatType.Armor => MinimumArmor,
+                StatType.Drill => MinimumDrill,
+                _ => 0f
+            };
+        }
+
+        private static float GetSafetyMaximum(StatType type)
+        {
+            return type switch
+            {
+                StatType.Engine => MaximumEffectiveEngineStat,
+                StatType.Drill => SpaceGame.RunOutcome.RunRewardCalculator
+                    .MaximumEffectiveDrillStat,
+                _ => float.PositiveInfinity
+            };
+        }
+
+        public static float GetMaximumPermanentStat(StatType type)
+        {
+            return type switch
+            {
+                StatType.Engine => MaximumPermanentEngineStat,
+                StatType.Drill => SpaceGame.RunOutcome.RunRewardCalculator
+                    .MaximumPermanentDrillStat,
+                _ => float.PositiveInfinity
+            };
+        }
+
+        public static float ClampPermanentStat(StatType type, float value)
+        {
+            float safeValue = IsFinite(value) && value >= 0f
+                ? value
+                : DefaultStatValue;
+            float maximum = GetMaximumPermanentStat(type);
+            return float.IsPositiveInfinity(maximum)
+                ? safeValue
+                : Mathf.Min(safeValue, maximum);
+        }
+
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
         }
 
         public Dictionary<StatType, float> GetAllFinalStats()
@@ -148,64 +247,69 @@ namespace Dev.NKY.Scripts
  
             // 개별 및 전체 스탯 변경 이벤트 발송
             OnStatChanged?.Invoke(mod.type, GetStat(mod.type));
-            OnAllStatsUpdated?.Invoke(GetAllFinalStats()); // ★ 전체 스탯 업데이트 이벤트 추가
-            SaveCurrentStats();
+            Dictionary<StatType, float> finalStats = GetAllFinalStats();
+            CaptureSessionFlightStats(finalStats);
+            OnAllStatsUpdated?.Invoke(finalStats);
         }
         
         public void UpgradeBaseStat(StatType type, float amount)
         {
             if (baseValues.ContainsKey(type))
             {
-                baseValues[type] += amount;
+                baseValues[type] = ClampPermanentStat(
+                    type,
+                    baseValues[type] + amount);
             }
             else
             {
-                baseValues[type] = amount;
+                baseValues[type] = ClampPermanentStat(type, amount);
             }
 
             // ★ 스탯 변경 이벤트 발송 (UI 및 타 시스템 자동 갱신)
+            PlayerProgressPersistence.Default.SaveBaseStats(baseValues);
             OnStatChanged?.Invoke(type, GetStat(type));
-            OnAllStatsUpdated?.Invoke(GetAllFinalStats());
-            SaveCurrentStats();
+            Dictionary<StatType, float> finalStats = GetAllFinalStats();
+            CaptureSessionFlightStats(finalStats);
+            OnAllStatsUpdated?.Invoke(finalStats);
         }
 
         public static Dictionary<StatType, float> GetSavedStats()
         {
-            var savedStats = new Dictionary<StatType, float>();
+            if (hasSessionFlightStats)
+            {
+                return new Dictionary<StatType, float>(
+                    sessionFlightStats);
+            }
+
+            var defaults = new Dictionary<StatType, float>();
+            foreach (StatType type in Enum.GetValues(typeof(StatType)))
+            {
+                defaults[type] = DefaultStatValue;
+            }
+
+            return PlayerProgressPersistence.Default.LoadBaseStats(
+                defaults);
+        }
+
+        private void CaptureSessionFlightStats()
+        {
+            CaptureSessionFlightStats(GetAllFinalStats());
+        }
+
+        private static void CaptureSessionFlightStats(
+            IReadOnlyDictionary<StatType, float> finalStats)
+        {
+            sessionFlightStats.Clear();
 
             foreach (StatType type in Enum.GetValues(typeof(StatType)))
             {
-                float value = PlayerPrefs.GetInt(SavedStatsInitializedKey, 0) != 0
-                    ? PlayerPrefs.GetFloat(GetSavedStatKey(type), DefaultStatValue)
-                    : DefaultStatValue;
-                savedStats[type] = IsValidStat(value) ? value : DefaultStatValue;
+                sessionFlightStats[type] =
+                    finalStats.TryGetValue(type, out float value)
+                        ? value
+                        : DefaultStatValue;
             }
 
-            return savedStats;
-        }
-
-        private void SaveCurrentStats()
-        {
-            foreach (StatType type in Enum.GetValues(typeof(StatType)))
-            {
-                float value = GetStat(type);
-                PlayerPrefs.SetFloat(
-                    GetSavedStatKey(type),
-                    IsValidStat(value) ? value : DefaultStatValue);
-            }
-
-            PlayerPrefs.SetInt(SavedStatsInitializedKey, 1);
-            PlayerPrefs.Save();
-        }
-
-        private static string GetSavedStatKey(StatType type)
-        {
-            return SavedStatsPrefix + type;
-        }
-
-        private static bool IsValidStat(float value)
-        {
-            return !float.IsNaN(value) && !float.IsInfinity(value) && value >= 0f;
+            hasSessionFlightStats = true;
         }
     }
 }

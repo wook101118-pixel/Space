@@ -27,7 +27,7 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
         private const string PrefabPath =
             PrefabFolder + "/PauseMenuWindow.prefab";
         private const string FontPath =
-            "Assets/Space/CommonUI/Fonts/NotoSansKR CommonUI SDF.asset";
+            "Assets/Dev/CSU/06_Fonts/x10y12pxDenkiChipHangul SDF.asset";
         private const string ButtonSpritePath =
             "Assets/Dev/CSU/00_Assets/Btn.png";
         private const string HoverMaterialPath =
@@ -216,6 +216,38 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
                         "Expected the shared hover visual on all five "
                         + $"action buttons; found {hoverVisuals.Length}.");
                 }
+                else
+                {
+                    foreach (MainMenuButtonHoverVisual hoverVisual
+                             in hoverVisuals)
+                    {
+                        if (hoverVisual.ShowOnSelection)
+                        {
+                            errors.Add(
+                                $"Pause button '{hoverVisual.name}' must "
+                                + "show its hover visual only for pointer "
+                                + "hover, not EventSystem selection.");
+                        }
+
+                        Button hoverButton =
+                            hoverVisual.GetComponent<Button>();
+                        if (hoverButton == null)
+                        {
+                            errors.Add(
+                                $"Pause hover visual '{hoverVisual.name}' "
+                                + "has no Button component.");
+                            continue;
+                        }
+
+                        ColorBlock colors = hoverButton.colors;
+                        if (colors.selectedColor != colors.normalColor)
+                        {
+                            errors.Add(
+                                $"Pause button '{hoverButton.name}' must "
+                                + "use its Normal Color for Selected Color.");
+                        }
+                    }
+                }
 
                 TMP_Text[] labels =
                     window.GetComponentsInChildren<TMP_Text>(true);
@@ -291,7 +323,7 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
             {
                 Debug.LogError(
                     "Pause menu prefab creation requires the existing "
-                    + "CommonUI Korean font and MainMenu button sprite.");
+                    + "x10y12pxDenkiChipHangul SDF and MainMenu button sprite.");
                 return null;
             }
 
@@ -536,8 +568,7 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
             colors.normalColor = Color.white;
             colors.highlightedColor =
                 new Color(0.9f, 1f, 1f, 1f);
-            colors.selectedColor =
-                new Color(0.88f, 1f, 1f, 1f);
+            colors.selectedColor = colors.normalColor;
             colors.pressedColor =
                 new Color(0.72f, 0.95f, 0.98f, 1f);
             colors.disabledColor =
@@ -581,7 +612,11 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
 
             MainMenuButtonHoverVisual hover =
                 target.AddComponent<MainMenuButtonHoverVisual>();
-            hover.Configure(button, glowImage, AccentColor);
+            hover.Configure(
+                button,
+                glowImage,
+                AccentColor,
+                selectionShowsVisual: false);
             return button;
         }
 

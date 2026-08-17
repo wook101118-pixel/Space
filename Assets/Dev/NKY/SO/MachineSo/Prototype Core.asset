@@ -31,6 +31,6 @@ MonoBehaviour:
   - type: 2
     modifierType: 0
     isRandom: 1
-    minValue: -15
-    maxValue: -25
+    minValue: -25
+    maxValue: -15
     value: 0

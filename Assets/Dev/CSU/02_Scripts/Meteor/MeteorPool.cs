@@ -50,6 +50,9 @@ namespace Dev.CSU._02_Scripts.Meteor
         private readonly List<MeteorMover> _destroyedInstanceBuffer =
             new List<MeteorMover>();
 
+        private readonly List<MeteorMover> _rentedInstanceBuffer =
+            new List<MeteorMover>();
+
         private readonly HashSet<GameObject> _warnedExhaustedVariants =
             new HashSet<GameObject>();
 
@@ -201,6 +204,30 @@ namespace Dev.CSU._02_Scripts.Meteor
             }
 
             pool.Inactive.Push(meteor);
+        }
+
+        public void ReturnAllActive()
+        {
+            _rentedInstanceBuffer.Clear();
+            foreach (VariantPool pool in _variantPools.Values)
+            {
+                foreach (MeteorMover meteor in pool.Rented)
+                {
+                    if (meteor != null)
+                    {
+                        _rentedInstanceBuffer.Add(meteor);
+                    }
+                }
+            }
+
+            for (int index = 0;
+                 index < _rentedInstanceBuffer.Count;
+                 index++)
+            {
+                Return(_rentedInstanceBuffer[index]);
+            }
+
+            _rentedInstanceBuffer.Clear();
         }
 
         public bool TryGetCounts(

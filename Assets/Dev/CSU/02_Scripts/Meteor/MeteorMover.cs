@@ -59,6 +59,7 @@ namespace Dev.CSU._02_Scripts.Meteor
             if (_rigidbody2D != null)
             {
                 _rigidbody2D.linearVelocity = _direction * _speed;
+                _rigidbody2D.angularVelocity = _rotationSpeed;
             }
         }
 
@@ -72,9 +73,12 @@ namespace Dev.CSU._02_Scripts.Meteor
             if (_rigidbody2D == null)
             {
                 transform.position += (Vector3)(_direction * (_speed * Time.deltaTime));
+                transform.Rotate(
+                    0f,
+                    0f,
+                    _rotationSpeed * Time.deltaTime,
+                    Space.Self);
             }
-
-            transform.Rotate(0f, 0f, _rotationSpeed * Time.deltaTime, Space.Self);
 
             _remainingLifetime -= Time.deltaTime;
             if (_remainingLifetime <= 0f)
@@ -137,10 +141,22 @@ namespace Dev.CSU._02_Scripts.Meteor
 
         private void CacheRigidbody()
         {
-            if (_rigidbody2D == null)
+            if (_rigidbody2D != null)
             {
-                TryGetComponent(out _rigidbody2D);
+                return;
             }
+
+            if (TryGetComponent(out _rigidbody2D))
+            {
+                return;
+            }
+
+            _rigidbody2D = gameObject.AddComponent<Rigidbody2D>();
+            _rigidbody2D.bodyType = RigidbodyType2D.Kinematic;
+            _rigidbody2D.gravityScale = 0f;
+            _rigidbody2D.collisionDetectionMode =
+                CollisionDetectionMode2D.Continuous;
+            _rigidbody2D.interpolation = RigidbodyInterpolation2D.Interpolate;
         }
 
         private void ResetRigidbody()
@@ -154,6 +170,12 @@ namespace Dev.CSU._02_Scripts.Meteor
 
         private void SetZRotation(float zRotation)
         {
+            if (_rigidbody2D != null)
+            {
+                _rigidbody2D.rotation = zRotation;
+                return;
+            }
+
             Vector3 eulerAngles = transform.eulerAngles;
             eulerAngles.z = zRotation;
             transform.rotation = Quaternion.Euler(eulerAngles);

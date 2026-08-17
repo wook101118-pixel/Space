@@ -253,7 +253,9 @@ namespace PortableEndingSystem.Editor
         {
             GameObject eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
 #if ENABLE_INPUT_SYSTEM
-            eventSystemObject.AddComponent<InputSystemUIInputModule>();
+            InputSystemUIInputModule inputModule =
+                eventSystemObject.AddComponent<InputSystemUIInputModule>();
+            inputModule.move = null;
 #else
             eventSystemObject.AddComponent<StandaloneInputModule>();
 #endif

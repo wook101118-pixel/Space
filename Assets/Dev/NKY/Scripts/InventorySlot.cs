@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Dev.NKY.Scripts
 {
@@ -29,14 +28,6 @@ namespace Dev.NKY.Scripts
         private void Start()
         {
             SpawnNewBlock();
-        }
-
-        private void Update()
-        {
-            if (Keyboard.current.jKey.wasPressedThisFrame)
-            {
-                SpawnNewBlock();
-            }
         }
 
         public void SpawnNewBlock()

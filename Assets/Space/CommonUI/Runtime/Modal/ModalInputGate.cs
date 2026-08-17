@@ -12,8 +12,8 @@ namespace SpaceGame.CommonUI.Modal
         [SerializeField] private List<string> gameplayActionMapIds =
             new List<string>();
 
-        private readonly Dictionary<InputActionMap, bool> previousStates =
-            new Dictionary<InputActionMap, bool>();
+        private readonly Dictionary<InputAction, bool> previousActionStates =
+            new Dictionary<InputAction, bool>();
         private int requestCount;
 
         public void Configure(
@@ -48,7 +48,7 @@ namespace SpaceGame.CommonUI.Modal
 
         private void BlockGameplay()
         {
-            previousStates.Clear();
+            previousActionStates.Clear();
             if (actionAsset == null)
             {
                 return;
@@ -62,8 +62,15 @@ namespace SpaceGame.CommonUI.Modal
                     continue;
                 }
 
-                previousStates[map] = map.enabled;
-                if (map.enabled)
+                bool hasEnabledAction = false;
+                foreach (InputAction action in map.actions)
+                {
+                    bool wasEnabled = action.enabled;
+                    previousActionStates[action] = wasEnabled;
+                    hasEnabledAction |= wasEnabled;
+                }
+
+                if (hasEnabledAction)
                 {
                     map.Disable();
                 }
@@ -72,15 +79,26 @@ namespace SpaceGame.CommonUI.Modal
 
         private void RestoreGameplay()
         {
-            foreach (KeyValuePair<InputActionMap, bool> pair in previousStates)
+            foreach (KeyValuePair<InputAction, bool> pair in
+                     previousActionStates)
             {
-                if (pair.Value && pair.Key != null)
+                InputAction action = pair.Key;
+                if (action == null || action.enabled == pair.Value)
                 {
-                    pair.Key.Enable();
+                    continue;
+                }
+
+                if (pair.Value)
+                {
+                    action.Enable();
+                }
+                else
+                {
+                    action.Disable();
                 }
             }
 
-            previousStates.Clear();
+            previousActionStates.Clear();
         }
 
         private void OnDisable()

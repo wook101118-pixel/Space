@@ -10,30 +10,73 @@ namespace SpaceGame.CommonUI.Input
     {
         [SerializeField] private string displayName;
         [SerializeField] private InputActionReference action;
+        [SerializeField] private string actionPath;
         [SerializeField] private string bindingId;
         [SerializeField] private string controlScheme;
+        [SerializeField] private string conflictGroup;
+        [SerializeField] private string logicalBinding;
+        [SerializeField] private bool reserved;
+
+        [NonSerialized] private InputActionAsset actionAsset;
 
         public string DisplayName => displayName;
         public InputActionReference ActionReference => action;
+        public InputAction Action
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(actionPath))
+                {
+                    InputAction resolved =
+                        actionAsset?.FindAction(actionPath, false);
+                    if (resolved != null)
+                    {
+                        return resolved;
+                    }
+                }
+
+                return action?.action;
+            }
+        }
+
+        public string ActionPath => actionPath;
         public string BindingId => bindingId;
         public string ControlScheme => controlScheme;
+        public string ConflictGroup => conflictGroup;
+        public string LogicalBinding => logicalBinding;
+        public bool IsReserved => reserved;
 
         public void Configure(
             string name,
             InputActionReference actionReference,
             string id,
-            string scheme)
+            string scheme,
+            string group = "",
+            string logicalId = "",
+            bool isReserved = false)
         {
             displayName = name;
             action = actionReference;
+            InputAction inputAction = actionReference?.action;
+            actionPath = inputAction?.actionMap == null
+                ? inputAction?.name ?? string.Empty
+                : $"{inputAction.actionMap.name}/{inputAction.name}";
             bindingId = id;
             controlScheme = scheme;
+            conflictGroup = group ?? string.Empty;
+            logicalBinding = logicalId ?? string.Empty;
+            reserved = isReserved;
+        }
+
+        internal void ResolveAgainst(InputActionAsset asset)
+        {
+            actionAsset = asset;
         }
 
         public bool TryGetBindingIndex(out int bindingIndex)
         {
             bindingIndex = -1;
-            InputAction inputAction = action?.action;
+            InputAction inputAction = Action;
             if (inputAction == null ||
                 !Guid.TryParse(bindingId, out Guid parsedId))
             {
@@ -52,7 +95,7 @@ namespace SpaceGame.CommonUI.Input
                 return string.Empty;
             }
 
-            return action.action.bindings[index].effectivePath;
+            return Action.bindings[index].effectivePath;
         }
 
         public string GetDisplayString()
@@ -62,7 +105,7 @@ namespace SpaceGame.CommonUI.Input
                 return "미지정";
             }
 
-            string value = action.action.GetBindingDisplayString(
+            string value = Action.GetBindingDisplayString(
                 index,
                 InputBinding.DisplayStringOptions.DontIncludeInteractions);
             return string.IsNullOrWhiteSpace(value) ? "미지정" : value;
@@ -76,6 +119,7 @@ namespace SpaceGame.CommonUI.Input
     {
         [SerializeField] private InputActionAsset actionAsset;
         [SerializeField] private InputActionReference cancelAction;
+        [SerializeField] private string cancelActionPath = "Common/Cancel";
         [SerializeField] private List<InputBindingDefinition> bindings =
             new List<InputBindingDefinition>();
         [SerializeField] private List<string> forbiddenControlPaths =
@@ -86,8 +130,32 @@ namespace SpaceGame.CommonUI.Input
         public event Action BindingsChanged;
 
         public InputActionAsset ActionAsset => actionAsset;
-        public InputActionReference CancelAction => cancelAction;
-        public IReadOnlyList<InputBindingDefinition> Bindings => bindings;
+        public InputAction CancelAction
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(cancelActionPath))
+                {
+                    InputAction resolved =
+                        actionAsset?.FindAction(cancelActionPath, false);
+                    if (resolved != null)
+                    {
+                        return resolved;
+                    }
+                }
+
+                return cancelAction?.action;
+            }
+        }
+
+        public IReadOnlyList<InputBindingDefinition> Bindings
+        {
+            get
+            {
+                ResolveDefinitions();
+                return bindings;
+            }
+        }
         public IReadOnlyList<string> ForbiddenControlPaths =>
             forbiddenControlPaths;
         public IReadOnlyList<string> GameplayActionMapIds =>
@@ -98,10 +166,13 @@ namespace SpaceGame.CommonUI.Input
             InputActionReference modalCancelAction,
             IEnumerable<InputBindingDefinition> definitions,
             IEnumerable<string> forbiddenPaths,
-            IEnumerable<string> gameplayMapIds)
+            IEnumerable<string> gameplayMapIds,
+            string modalCancelActionPath = null)
         {
             actionAsset = asset;
             cancelAction = modalCancelAction;
+            cancelActionPath = modalCancelActionPath
+                ?? GetActionPath(modalCancelAction?.action);
             bindings = definitions == null
                 ? new List<InputBindingDefinition>()
                 : new List<InputBindingDefinition>(definitions);
@@ -111,6 +182,7 @@ namespace SpaceGame.CommonUI.Input
             gameplayActionMapIds = gameplayMapIds == null
                 ? new List<string>()
                 : new List<string>(gameplayMapIds);
+            ResolveDefinitions();
         }
 
         public bool IsForbidden(InputControl control)
@@ -136,6 +208,27 @@ namespace SpaceGame.CommonUI.Input
             InputControl control,
             out InputBindingDefinition duplicate)
         {
+            return TryFindConflict(
+                source,
+                control,
+                out duplicate,
+                out _);
+        }
+
+        public bool TryFindConflict(
+            InputBindingDefinition source,
+            InputControl control,
+            out InputBindingDefinition duplicate,
+            out string conflictDisplayName)
+        {
+            duplicate = null;
+            conflictDisplayName = string.Empty;
+            if (source == null || control == null)
+            {
+                return false;
+            }
+
+            ResolveDefinitions();
             foreach (InputBindingDefinition candidate in bindings)
             {
                 if (ReferenceEquals(candidate, source))
@@ -151,17 +244,190 @@ namespace SpaceGame.CommonUI.Input
                     continue;
                 }
 
+                if (!ShouldCheckConflict(source, candidate))
+                {
+                    continue;
+                }
+
                 string effectivePath = candidate.GetEffectivePath();
                 if (!string.IsNullOrWhiteSpace(effectivePath) &&
                     InputControlPath.Matches(effectivePath, control))
                 {
                     duplicate = candidate;
+                    conflictDisplayName = candidate.DisplayName;
                     return true;
                 }
             }
 
-            duplicate = null;
+            // Definitions with an explicit conflict group are intentionally
+            // scoped. This allows separate input domains to reuse a control
+            // while still rejecting duplicates inside each group.
+            if (!string.IsNullOrWhiteSpace(source.ConflictGroup))
+            {
+                return false;
+            }
+
+            if (actionAsset == null ||
+                !Guid.TryParse(source.BindingId, out Guid sourceBindingId))
+            {
+                return false;
+            }
+
+            foreach (InputActionMap map in actionAsset.actionMaps)
+            {
+                if (!IsGameplayMap(map))
+                {
+                    continue;
+                }
+
+                foreach (InputAction action in map.actions)
+                {
+                    foreach (InputBinding binding in action.bindings)
+                    {
+                        if (binding.isComposite ||
+                            binding.id == sourceBindingId ||
+                            !MatchesControlScheme(
+                                binding,
+                                source.ControlScheme))
+                        {
+                            continue;
+                        }
+
+                        string effectivePath = binding.effectivePath;
+                        if (string.IsNullOrWhiteSpace(effectivePath) ||
+                            !InputControlPath.Matches(
+                                effectivePath,
+                                control))
+                        {
+                            continue;
+                        }
+
+                        duplicate = FindOwningDefinition(action, binding);
+                        if (ReferenceEquals(duplicate, source))
+                        {
+                            // A fixed alternative for the same logical
+                            // direction is redundant but not contradictory.
+                            duplicate = null;
+                            continue;
+                        }
+
+                        conflictDisplayName = duplicate != null
+                            ? duplicate.DisplayName
+                            : $"다른 게임 입력 ({action.name})";
+                        return true;
+                    }
+                }
+            }
+
             return false;
+        }
+
+        private bool IsGameplayMap(InputActionMap map)
+        {
+            if (map == null)
+            {
+                return false;
+            }
+
+            string mapId = map.id.ToString();
+            foreach (string gameplayMapId in gameplayActionMapIds)
+            {
+                if (string.Equals(
+                        gameplayMapId,
+                        mapId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private InputBindingDefinition FindOwningDefinition(
+            InputAction action,
+            InputBinding targetBinding)
+        {
+            foreach (InputBindingDefinition candidate in bindings)
+            {
+                if (candidate?.Action != action ||
+                    !candidate.TryGetBindingIndex(out int candidateIndex))
+                {
+                    continue;
+                }
+
+                InputBinding candidateBinding =
+                    action.bindings[candidateIndex];
+                if (candidateBinding.id == targetBinding.id)
+                {
+                    return candidate;
+                }
+
+                if (!string.IsNullOrWhiteSpace(targetBinding.name) &&
+                    string.Equals(
+                        candidateBinding.name,
+                        targetBinding.name,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool MatchesControlScheme(
+            InputBinding binding,
+            string controlScheme)
+        {
+            return string.IsNullOrWhiteSpace(controlScheme) ||
+                   InputBinding.MaskByGroup(controlScheme).Matches(binding);
+        }
+
+        private static bool ShouldCheckConflict(
+            InputBindingDefinition source,
+            InputBindingDefinition candidate)
+        {
+            if (source.IsReserved || candidate.IsReserved)
+            {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(source.ConflictGroup) ||
+                string.IsNullOrWhiteSpace(candidate.ConflictGroup))
+            {
+                return true;
+            }
+
+            return string.Equals(
+                source.ConflictGroup,
+                candidate.ConflictGroup,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ResolveDefinitions()
+        {
+            foreach (InputBindingDefinition definition in bindings)
+            {
+                definition?.ResolveAgainst(actionAsset);
+            }
+        }
+
+        private static string GetActionPath(InputAction action)
+        {
+            if (action == null)
+            {
+                return string.Empty;
+            }
+
+            return action.actionMap == null
+                ? action.name
+                : $"{action.actionMap.name}/{action.name}";
+        }
+
+        private void OnEnable()
+        {
+            ResolveDefinitions();
         }
 
         public void RemoveAllOverrides()

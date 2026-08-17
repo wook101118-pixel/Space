@@ -67,7 +67,7 @@ SPECIAL THANKS
 THANK YOU FOR PLAYING";
 
         [Header("Content")]
-        [SerializeField] private string gameTitle = "게임 제목";
+        [SerializeField] private string gameTitle = "몬타젬";
         [SerializeField] private string developerName = "개발자 이름";
         [TextArea(20, 80)]
         [SerializeField] private string creditsTemplate = DefaultCreditsTemplate;
@@ -111,7 +111,7 @@ THANK YOU FOR PLAYING";
         [Min(0f)]
         [SerializeField] private float screenFadeOutDuration = 2.5f;
 
-        public string GameTitle => string.IsNullOrWhiteSpace(gameTitle) ? "게임 제목" : gameTitle.Trim();
+        public string GameTitle => string.IsNullOrWhiteSpace(gameTitle) ? "몬타젬" : gameTitle.Trim();
         public string DeveloperName => string.IsNullOrWhiteSpace(developerName) ? "개발자 이름" : developerName.Trim();
         public string CreditsTemplate => string.IsNullOrEmpty(creditsTemplate) ? DefaultCreditsTemplate : creditsTemplate;
         public IReadOnlyList<EndingCreditPhotoData> Photos => photos;

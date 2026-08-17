@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: TutorialPage_03
   m_EditorClassIdentifier: Space.CommonUI.Runtime::SpaceGame.CommonUI.Tutorial.TutorialPageData
   image: {fileID: 0}
-  title: "\uC900\uBE44 \uC644\uB8CC"
-  body: "\uB9C8\uC9C0\uB9C9 \uD398\uC774\uC9C0\uC5D0\uC11C\uB294 \uB2E4\uC74C \uBC84\uD2BC
-    \uB300\uC2E0 \uC2DC\uC791 \uBC84\uD2BC\uC774 \uD45C\uC2DC\uB429\uB2C8\uB2E4."
+  visualHint: ESC 일시정지
+  title: "일시정지와 설정"
+  body: "비행 중 Esc 키를 누르면 일시정지 메뉴가 열립니다. 설정에서 음량과
+    해상도, 화면 모드를 바꿀 수 있습니다."

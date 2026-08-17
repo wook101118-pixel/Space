@@ -14,7 +14,9 @@ namespace SpaceGame.CommonUI.Views
     [DisallowMultipleComponent]
     public sealed class SettingsWindow : ModalWindowBase
     {
-        private const int TopmostSortingOrder = 32000;
+        // TMP_Dropdown creates its popup canvas at sorting order 30000.
+        // Keep the modal above normal UI while leaving its option list visible.
+        private const int TopmostSortingOrder = 29000;
 
         [Header("Audio")]
         [SerializeField] private Slider masterSlider;
@@ -48,6 +50,7 @@ namespace SpaceGame.CommonUI.Views
         private string bindingSnapshotJson;
         private bool suppressControlEvents;
         private Coroutine bindingRefreshRoutine;
+        private InputBindingRowView activeRebindRow;
 
         public void ConfigureView(
             Slider master,
@@ -162,23 +165,28 @@ namespace SpaceGame.CommonUI.Views
 
         private void RestoreDefaults()
         {
+            CancelRebindIfNeeded();
             workingCopy = GameSettingsData.CreateDefault();
-            CaptureCurrentResolution(workingCopy);
             PushDataToControls();
             Context.Settings.PreviewAudio(workingCopy);
-            SetStatus("기본 설정을 미리 적용했습니다. 적용을 눌러 저장하세요.");
+            Context.BindingCatalog.RemoveAllOverrides();
+            RefreshBindingRows();
+            SetStatus(
+                "화면, 사운드와 모든 키를 기본값으로 복원했습니다. " +
+                "적용을 눌러 저장하세요.");
         }
 
         private void RestoreAllBindings()
         {
             CancelRebindIfNeeded();
             workingCopy = GameSettingsData.CreateDefault();
-            CaptureCurrentResolution(workingCopy);
             PushDataToControls();
             Context.Settings.PreviewAudio(workingCopy);
             Context.BindingCatalog.RemoveAllOverrides();
             RefreshBindingRows();
-            SetStatus("화면, 사운드와 좌우 이동 키를 모두 초기화했습니다. 적용을 눌러 저장하세요.");
+            SetStatus(
+                "화면, 사운드와 모든 키를 초기화했습니다. " +
+                "적용을 눌러 저장하세요.");
         }
 
         private void BuildBindingRows()
@@ -199,7 +207,9 @@ namespace SpaceGame.CommonUI.Views
                     definition,
                     Context.BindingCatalog,
                     Context.CancelRouter,
-                    SetStatus);
+                    SetStatus,
+                    HandleRebindStarting,
+                    HandleRebindEnded);
                 bindingRows.Add(row);
             }
 
@@ -331,15 +341,35 @@ namespace SpaceGame.CommonUI.Views
 
         private bool CancelRebindIfNeeded()
         {
+            bool cancelledAny = false;
             foreach (InputBindingRowView row in bindingRows)
             {
                 if (row.CancelRebind())
                 {
-                    return true;
+                    cancelledAny = true;
                 }
             }
 
-            return false;
+            return cancelledAny;
+        }
+
+        private void HandleRebindStarting(InputBindingRowView requester)
+        {
+            if (activeRebindRow == requester)
+            {
+                return;
+            }
+
+            activeRebindRow?.CancelRebind();
+            activeRebindRow = requester;
+        }
+
+        private void HandleRebindEnded(InputBindingRowView sender)
+        {
+            if (activeRebindRow == sender)
+            {
+                activeRebindRow = null;
+            }
         }
 
         private void RefreshBindingRows()

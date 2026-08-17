@@ -4,10 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Dev.CSU._02_Scripts.MainMenu;
 using SpaceGame.CommonUI;
 using SpaceGame.CommonUI.Modal;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.InputSystem.UI;
@@ -74,6 +76,7 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
                 // Let the Editor menu click that launched this verifier finish
                 // before testing runtime selection and pointer-independent ESC.
                 await WaitForUi();
+                await WaitForPlayerFrames(2);
                 await PressEscape();
                 Ensure(window.IsOpen, "ESC should open the pause menu.");
                 Ensure(
@@ -90,6 +93,11 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
                 EnsureDefaultSelections(window);
                 EnsureUiInputBindings();
                 EnsureNavigationGraph(window);
+                EnsureSelectionVisualPolicy(window);
+                await WaitForCurrentSelection(window, "ContinueButton");
+                await EnsurePointerHoverBehavior(
+                    window,
+                    "ContinueButton");
 
                 FindButton(window, "SettingsButton").onClick.Invoke();
                 await WaitForUi();
@@ -118,12 +126,16 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
                 Ensure(
                     root.Context.PauseService.RequestCount == 1,
                     "Closing settings should leave the pause lease active.");
+                await WaitForCurrentSelection(window, "SettingsButton");
 
                 FindButton(window, "ExitButton").onClick.Invoke();
                 await WaitForUi();
                 Ensure(
                     window.IsShowingExitChoices,
                     "Exit should show the two-choice sub-screen.");
+                await WaitForCurrentSelection(
+                    window,
+                    "ReturnToMainMenuButton");
 
                 await PressEscape();
                 await WaitForUi();
@@ -131,6 +143,7 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
                     window.IsOpen && !window.IsShowingExitChoices,
                     "ESC in exit choices should return to the main pause "
                     + "screen instead of resuming.");
+                await WaitForCurrentSelection(window, "ExitButton");
 
                 await PressEscape();
                 await WaitForUi();
@@ -153,12 +166,14 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
                     window.IsOpen
                     && root.Context.PauseService.RequestCount == 1,
                     "A second pause cycle should still acquire one lease.");
-                FindButton(window, "ContinueButton").onClick.Invoke();
+                await WaitForCurrentSelection(window, "ContinueButton");
+                await PressSubmit();
                 await WaitForUi();
                 Ensure(
                     !window.IsOpen
                     && root.Context.PauseService.RequestCount == 0,
-                    "Continue should close and release exactly once.");
+                    "Submit on the selected Continue button should close "
+                    + "and release exactly once.");
 
                 await PressEscape();
                 FindButton(window, "ExitButton").onClick.Invoke();
@@ -182,10 +197,10 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
 
                 Debug.Log(
                     "[Pause Menu Play Mode] PASS: cancel priority, nested "
-                    + "settings, keyboard/gamepad navigation, exit "
-                    + "back-navigation, exact time-scale and action-map "
-                    + "restoration, repeat entry, and idempotent quit request "
-                    + "all passed.");
+                    + "settings, selection-neutral hover visuals, retained "
+                    + "Submit, exit back-navigation, exact time-scale and "
+                    + "action-map restoration, repeat entry, and idempotent "
+                    + "quit request all passed.");
             }
             catch (Exception exception)
             {
@@ -269,6 +284,25 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
             await Task.Delay(180);
         }
 
+        private static async Task PressSubmit()
+        {
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard == null)
+            {
+                throw new InvalidOperationException(
+                    "No keyboard is available to verify Submit routing.");
+            }
+
+            InputSystem.QueueStateEvent(
+                keyboard,
+                new KeyboardState(Key.Enter));
+            await Task.Delay(100);
+            InputSystem.QueueStateEvent(
+                keyboard,
+                new KeyboardState());
+            await Task.Delay(180);
+        }
+
         private static void EnsureNavigationGraph(PauseMenuWindow window)
         {
             Button continueButton = FindButton(window, "ContinueButton");
@@ -327,6 +361,140 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
                 "ReturnToMainMenuButton");
         }
 
+        private static void EnsureSelectionVisualPolicy(
+            PauseMenuWindow window)
+        {
+            MainMenuButtonHoverVisual[] hoverVisuals = window
+                .GetComponentsInChildren<MainMenuButtonHoverVisual>(true);
+            Ensure(
+                hoverVisuals.Length == 5,
+                "Pause menu should have five pointer hover visuals.");
+
+            string[] buttonNames =
+            {
+                "ContinueButton",
+                "SettingsButton",
+                "ExitButton",
+                "ReturnToMainMenuButton",
+                "QuitGameButton"
+            };
+            foreach (string buttonName in buttonNames)
+            {
+                Button button = FindButton(window, buttonName);
+                MainMenuButtonHoverVisual hoverVisual =
+                    button.GetComponent<MainMenuButtonHoverVisual>();
+                Ensure(
+                    hoverVisual != null,
+                    $"Pause button '{buttonName}' has no pointer hover "
+                    + "visual.");
+                Ensure(
+                    !hoverVisual.ShowOnSelection,
+                    $"Pause button '{buttonName}' must not show its "
+                    + "hover visual for EventSystem selection.");
+
+                Ensure(
+                    ColorsApproximately(
+                        button.colors.selectedColor,
+                        button.colors.normalColor),
+                    $"Pause button '{button.name}' must use its Normal "
+                    + "Color for Selected Color.");
+            }
+        }
+
+        private static async Task WaitForCurrentSelection(
+            PauseMenuWindow window,
+            string expectedButtonName)
+        {
+            Button button = FindButton(window, expectedButtonName);
+            float timeoutAt = Time.realtimeSinceStartup + 2f;
+            while ((EventSystem.current == null
+                    || EventSystem.current.currentSelectedGameObject
+                        != button.gameObject)
+                   && Time.realtimeSinceStartup < timeoutAt)
+            {
+                await Task.Yield();
+            }
+
+            // The menu selection is scheduled for the next player frame. Keep
+            // observing briefly so a delayed Editor menu click cannot create a
+            // false pass before deselectOnBackgroundClick is processed.
+            await WaitForPlayerFrames(2);
+
+            EventSystem eventSystem = EventSystem.current;
+            GameObject actualSelection = eventSystem != null
+                ? eventSystem.currentSelectedGameObject
+                : null;
+            string actualName = actualSelection != null
+                ? actualSelection.name
+                : "<none>";
+            string eventSystemName = eventSystem != null
+                ? $"{eventSystem.name} ({eventSystem.GetInstanceID()})"
+                : "<none>";
+            Ensure(
+                eventSystem != null
+                && actualSelection == button.gameObject,
+                $"'{expectedButtonName}' should remain the active Submit "
+                + $"selection. Actual: '{actualName}', EventSystem: "
+                + $"'{eventSystemName}', frame: {Time.frameCount}.");
+        }
+
+        private static async Task EnsurePointerHoverBehavior(
+            PauseMenuWindow window,
+            string buttonName)
+        {
+            Button button = FindButton(window, buttonName);
+            MainMenuButtonHoverVisual hoverVisual =
+                button.GetComponent<MainMenuButtonHoverVisual>();
+            Transform glowTransform = button.transform.Find("HoverGlow");
+            Image glowImage = glowTransform != null
+                ? glowTransform.GetComponent<Image>()
+                : null;
+            Ensure(
+                hoverVisual != null && glowImage != null,
+                $"'{buttonName}' is missing its pointer hover visual.");
+            Ensure(
+                EventSystem.current != null,
+                "EventSystem is required to verify pointer hover.");
+
+            var pointerData = new PointerEventData(EventSystem.current);
+            hoverVisual.OnPointerExit(pointerData);
+            await WaitForUi();
+            Vector3 baseScale = button.transform.localScale;
+            Ensure(
+                glowImage.color.a <= 0.001f,
+                $"'{buttonName}' should start with its hover glow hidden.");
+
+            hoverVisual.OnPointerEnter(pointerData);
+            await WaitForUi();
+            Ensure(
+                glowImage.color.a > 0.001f,
+                $"'{buttonName}' pointer enter should reveal the hover glow.");
+            Ensure(
+                Vector3.Distance(
+                    button.transform.localScale,
+                    baseScale) > 0.0001f,
+                $"'{buttonName}' pointer enter should apply hover scale.");
+
+            hoverVisual.OnPointerExit(pointerData);
+            await WaitForUi();
+            Ensure(
+                glowImage.color.a <= 0.001f,
+                $"'{buttonName}' pointer exit should hide the hover glow.");
+            Ensure(
+                Vector3.Distance(
+                    button.transform.localScale,
+                    baseScale) <= 0.0001f,
+                $"'{buttonName}' pointer exit should restore base scale.");
+        }
+
+        private static bool ColorsApproximately(Color left, Color right)
+        {
+            return Mathf.Approximately(left.r, right.r)
+                && Mathf.Approximately(left.g, right.g)
+                && Mathf.Approximately(left.b, right.b)
+                && Mathf.Approximately(left.a, right.a);
+        }
+
         private static void EnsurePrivateButton(
             PauseMenuWindow window,
             string fieldName,
@@ -351,9 +519,9 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
                 "InputSystemUIInputModule was not found.");
 
             InputAction moveAction = module.move?.action;
-            EnsureBinding(moveAction, "<Keyboard>/w", "Navigate Up (W)");
-            EnsureBinding(moveAction, "<Keyboard>/s", "Navigate Down (S)");
-            EnsureBinding(moveAction, "<Gamepad>", "Gamepad Navigate");
+            Ensure(
+                moveAction == null || moveAction.bindings.Count == 0,
+                "UI navigation must remain disabled for pointer-only UI.");
             EnsureBinding(
                 module.submit?.action,
                 "{Submit}",
@@ -390,6 +558,15 @@ namespace Dev.CSU._02_Scripts.PauseMenu.Editor
         private static async Task WaitForUi()
         {
             await Task.Delay(280);
+        }
+
+        private static async Task WaitForPlayerFrames(int frameCount)
+        {
+            int targetFrame = Time.frameCount + Mathf.Max(1, frameCount);
+            while (Time.frameCount < targetFrame)
+            {
+                await Task.Yield();
+            }
         }
 
         private static Button FindButton(

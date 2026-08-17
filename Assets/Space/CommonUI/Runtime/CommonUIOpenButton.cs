@@ -31,6 +31,12 @@ namespace SpaceGame.CommonUI
 
         private void Awake()
         {
+            if (target == CommonUIWindowTarget.Tutorial)
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+
             button.onClick.AddListener(Open);
         }
 

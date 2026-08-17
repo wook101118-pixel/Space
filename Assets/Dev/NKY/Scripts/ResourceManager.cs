@@ -45,6 +45,14 @@ namespace Dev.NKY.Scripts
         /// </summary>
         public bool ConsumeResource(int amount)
         {
+            if (amount < 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(amount),
+                    amount,
+                    "Resource costs cannot be negative.");
+            }
+
             if (!HasEnoughResource(amount)) return false;
 
             CurrentResource -= amount;
@@ -65,7 +73,12 @@ namespace Dev.NKY.Scripts
                     "Resource rewards cannot be negative.");
             }
 
-            CurrentResource += amount;
+            long updatedResource = (long)CurrentResource + amount;
+            CurrentResource = updatedResource >= int.MaxValue
+                ? int.MaxValue
+                : updatedResource <= 0L
+                    ? 0
+                    : (int)updatedResource;
             SaveAndNotify();
         }
 

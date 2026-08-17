@@ -349,17 +349,17 @@ MonoBehaviour:
   m_MoveRepeatDelay: 0.5
   m_MoveRepeatRate: 0.1
   m_XRTrackingOrigin: {fileID: 0}
-  m_ActionsAsset: {fileID: -944628639613478452, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_PointAction: {fileID: -1654692200621890270, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_MoveAction: {fileID: -8784545083839296357, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_SubmitAction: {fileID: 392368643174621059, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_CancelAction: {fileID: 7727032971491509709, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_LeftClickAction: {fileID: 3001919216989983466, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_MiddleClickAction: {fileID: -2185481485913320682, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_RightClickAction: {fileID: -4090225696740746782, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_ScrollWheelAction: {fileID: 6240969308177333660, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_TrackedDevicePositionAction: {fileID: 6564999863303420839, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
-  m_TrackedDeviceOrientationAction: {fileID: 7970375526676320489, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_ActionsAsset: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_PointAction: {fileID: -1654692200621890270, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_MoveAction: {fileID: -8784545083839296357, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_SubmitAction: {fileID: 392368643174621059, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_CancelAction: {fileID: 7727032971491509709, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_LeftClickAction: {fileID: 3001919216989983466, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_MiddleClickAction: {fileID: -2185481485913320682, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_RightClickAction: {fileID: -4090225696740746782, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_ScrollWheelAction: {fileID: 6240969308177333660, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_TrackedDevicePositionAction: {fileID: 6564999863303420839, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  m_TrackedDeviceOrientationAction: {fileID: 7970375526676320489, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   m_DeselectOnBackgroundClick: 1
   m_PointerBehavior: 0
   m_CursorLockBehavior: 0
@@ -376,7 +376,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76c392e42b5098c458856cdf6ecaaaa1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.EventSystems.EventSystem
-  m_FirstSelected: {fileID: 0}
+  m_FirstSelected: {fileID: 46904140}
   m_sendNavigationEvents: 1
   m_DragThreshold: 10
 --- !u!4 &288100299
@@ -492,6 +492,7 @@ GameObject:
   - component: {fileID: 840175390}
   - component: {fileID: 840175389}
   - component: {fileID: 840175388}
+  - component: {fileID: 840175391}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -573,6 +574,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &840175391
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 840175387}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
 --- !u!1 &1017402519
 GameObject:
   m_ObjectHideFlags: 0
@@ -669,8 +714,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: "\uBA54\uC778 \uBA54\uB274"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: c7714d3c64639cd4786ad2f491ef7747, type: 2}
-  m_sharedMaterial: {fileID: -3514581017222194554, guid: c7714d3c64639cd4786ad2f491ef7747, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: f78a47e415f448244859ab7f9181e967, type: 2}
+  m_sharedMaterial: {fileID: 5994632268134578020, guid: f78a47e415f448244859ab7f9181e967, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -689,7 +734,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -853,14 +898,27 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "THE END\n\n\n\uBAA8\uB4E0 \uC5EC\uC815\uC774 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4.\n\n\n{GAME_TITLE}\n\n\nA
-    GAME BY\n\n{DEVELOPER_NAME}\n\n\nGAME DESIGN\n\uAC8C\uC784 \uB514\uC790\uC778\n\n{DEVELOPER_NAME}\n\n\nPROGRAMMING\n\uD504\uB85C\uADF8\uB798\uBC0D\n\n{DEVELOPER_NAME}\n\n\nART
-    DIRECTION\n\uC544\uD2B8 \uB514\uB809\uC158\n\n{DEVELOPER_NAME}\n\n\nSPECIAL THANKS\n\uD50C\uB808\uC774\uD574
-    \uC8FC\uC2E0 \uBAA8\uB4E0 \uBD84\uAED8 \uAC10\uC0AC\uB4DC\uB9BD\uB2C8\uB2E4.\n\n\nTHANK
-    YOU FOR PLAYING"
+  m_text: "THE END\r\n\r\n\r\n\uB9C8\uCE68\uB0B4, \uAE34 \uC5EC\uC815\uC774 \uB05D\uB0AC\uC2B5\uB2C8\uB2E4.\r\n\r\n\uC218\uB9CE\uC740
+    \uBCC4\uACFC \uD589\uC131\uC744 \uC9C0\uB098\r\n\r\n\uC6B0\uC8FC\uC120\uC740
+    \uBB34\uC0AC\uD788 \uBAA9\uC801\uC9C0\uC5D0 \uB3C4\uCC29\uD588\uC2B5\uB2C8\uB2E4.\r\n\r\n\uD558\uC9C0\uB9CC
+    \uC774\uACF3\uC740 \uC6B0\uC8FC\uC758 \uB05D\uC774 \uC544\uB2D9\uB2C8\uB2E4.\r\n\r\n\uB610
+    \uB2E4\uB978 \uBCC4\uACFC \uC0C8\uB85C\uC6B4 \uBAA8\uD5D8\uC774 \uB2F9\uC2E0\uC744
+    \uAE30\uB2E4\uB9AC\uACE0 \uC788\uC744\uC9C0\uB3C4 \uBAA8\uB985\uB2C8\uB2E4.\r\n\r\n\uB05D\uAE4C\uC9C0
+    \uD568\uAED8\uD574 \uC8FC\uC154\uC11C \uAC10\uC0AC\uD569\uB2C8\uB2E4.\r\n\r\nTHANK
+    YOU FOR PLAYING\r\n\r\nGAME DIRECTOR\r\n\r\n\uCD5C\uC131\uC6B1\r\n\r\nGAME DESIGN\r\n\r\n\uC2E0\uB3D9\uADDC&\uBC29\uC2B9\uC900\r\n\r\nPROGRAMMING\r\n\r\n\uB098\uAC15\uC724&\uCD5C\uC131\uC6B1\r\n\r\nLEVEL
+    DESIGN\r\n\r\n\uCD5C\uC131\uC6B1\r\n\r\nART & VISUAL DESIGN\r\n\r\n\uC2E0\uB3D9\uADDC&\uBC29\uC2B9\uC900\r\n\r\nUI
+    / UX DESIGN\r\n\r\n\uB098\uAC15\uC724\r\n\r\nSOUND DESIGN\r\n\r\n\uB098\uAC15\uC724\r\n\r\nBACKGROUND
+    MUSIC\r\n\r\n\uCD5C\uC131\uC6B1\r\n\r\nSPECIAL THANKS\r\n\r\n\uAC8C\uC784\uC744
+    \uD50C\uB808\uC774\uD574 \uC8FC\uC2E0 \uBAA8\uB4E0 \uBD84\uB4E4\r\n\uB3C4\uC6C0\uC744
+    \uC8FC\uC2E0 \uC120\uC0DD\uB2D8\uACFC \uCE5C\uAD6C\uB4E4\r\n\uADF8\uB9AC\uACE0
+    \uAC1C\uBC1C\uC744 \uB05D\uAE4C\uC9C0 \uC751\uC6D0\uD574 \uC8FC\uC2E0 \uBAA8\uB4E0
+    \uBD84\uB4E4\r\n\r\nDEVELOPED BY\r\n\r\n\uCD5C\uC2E0\uBC29\r\n\r\nPOWERED BY\r\n\r\nUnity\r\n\r\n\uB2F9\uC2E0\uC758
+    \uC5EC\uC815\uC740 \uC5EC\uAE30\uC11C \uB05D\uB098\uC9C0\uB9CC,\r\n\uC6B0\uC8FC\uC5D0\uB294
+    \uC544\uC9C1 \uC218\uB9CE\uC740 \uC774\uC57C\uAE30\uAC00 \uB0A8\uC544 \uC788\uC2B5\uB2C8\uB2E4.\r\n\r\nSEE
+    YOU AMONG THE STARS\r\n\r\n\xA9 2026 \uCD5C\uC2E0\uBC29. All Rights Reserved."
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: c7714d3c64639cd4786ad2f491ef7747, type: 2}
-  m_sharedMaterial: {fileID: -3514581017222194554, guid: c7714d3c64639cd4786ad2f491ef7747, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: f78a47e415f448244859ab7f9181e967, type: 2}
+  m_sharedMaterial: {fileID: 5994632268134578020, guid: f78a47e415f448244859ab7f9181e967, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -879,7 +937,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -1089,7 +1147,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0
@@ -1273,8 +1331,11 @@ MonoBehaviour:
   photoTemplate: {fileID: 1616846436}
   endActions: {fileID: 1193734296}
   exitButton: {fileID: 46904142}
+  cancelHintText: {fileID: 2023487658}
   sceneFadeOverlay: {fileID: 2029501434}
   bgmSource: {fileID: 1992504199}
+  inputActions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  cancelActionPath: Common/Cancel
 --- !u!1 &2023487656
 GameObject:
   m_ObjectHideFlags: 0
@@ -1334,14 +1395,14 @@ MonoBehaviour:
       m_Calls: []
   m_text: "ESC: \uC5D4\uB529 \uB098\uAC00\uAE30"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: c7714d3c64639cd4786ad2f491ef7747, type: 2}
-  m_sharedMaterial: {fileID: -3514581017222194554, guid: c7714d3c64639cd4786ad2f491ef7747, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: f78a47e415f448244859ab7f9181e967, type: 2}
+  m_sharedMaterial: {fileID: 5994632268134578020, guid: f78a47e415f448244859ab7f9181e967, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 2801795071
   m_fontColor: {r: 1, g: 1, b: 1, a: 0.65}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -1354,7 +1415,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -1365,7 +1426,7 @@ MonoBehaviour:
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 1
   m_HorizontalAlignment: 4
   m_VerticalAlignment: 1024
   m_textAlignment: 65535

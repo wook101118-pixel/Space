@@ -135,6 +135,16 @@ namespace SpaceGame.CommonUI.Views
             pageImage.sprite = page.Image;
             pageImage.enabled = page.Image != null;
             placeholder.SetActive(page.Image == null);
+            if (page.Image == null)
+            {
+                TMP_Text visualHint = placeholder.GetComponentInChildren<TMP_Text>(true);
+                if (visualHint != null)
+                {
+                    visualHint.text = string.IsNullOrWhiteSpace(page.VisualHint)
+                        ? page.Title
+                        : page.VisualHint;
+                }
+            }
             titleText.text = page.Title;
             bodyText.text = page.Body;
             pageCounterText.text = $"{pageIndex + 1} / {pageCount}";

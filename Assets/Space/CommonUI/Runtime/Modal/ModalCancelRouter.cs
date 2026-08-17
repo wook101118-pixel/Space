@@ -9,26 +9,32 @@ namespace SpaceGame.CommonUI.Modal
     public sealed class ModalCancelRouter : MonoBehaviour
     {
         private readonly List<Entry> entries = new List<Entry>();
-        private InputActionReference cancelAction;
+        private InputAction cancelAction;
         private InputAction fallbackCancelAction;
         private long nextSequence;
         private bool enabledActionLocally;
         private int lastHandledFrame = -1;
 
         public void Configure(
-            InputActionReference action,
+            InputAction action,
             string fallbackControlPath)
         {
             Unsubscribe();
             fallbackCancelAction?.Dispose();
             cancelAction = action;
             fallbackCancelAction = null;
-            if (!string.IsNullOrWhiteSpace(fallbackControlPath))
+            if (cancelAction == null &&
+                !string.IsNullOrWhiteSpace(fallbackControlPath))
             {
                 fallbackCancelAction = new InputAction(
                     "Modal Cancel Fallback",
                     InputActionType.Button,
                     fallbackControlPath);
+                Debug.LogWarning(
+                    $"[{nameof(ModalCancelRouter)}] The configured cancel "
+                    + "action is missing. A fixed fallback is active at "
+                    + $"'{fallbackControlPath}'.",
+                    this);
             }
 
             Subscribe();
@@ -64,7 +70,7 @@ namespace SpaceGame.CommonUI.Modal
 
         private void Subscribe()
         {
-            InputAction action = cancelAction?.action;
+            InputAction action = cancelAction;
             if (!isActiveAndEnabled)
             {
                 return;
@@ -91,7 +97,7 @@ namespace SpaceGame.CommonUI.Modal
 
         private void Unsubscribe()
         {
-            InputAction action = cancelAction?.action;
+            InputAction action = cancelAction;
             if (action != null)
             {
                 action.performed -= OnCancelPerformed;
@@ -112,9 +118,14 @@ namespace SpaceGame.CommonUI.Modal
 
         private void OnCancelPerformed(InputAction.CallbackContext context)
         {
+            TryRouteCancel();
+        }
+
+        public bool TryRouteCancel()
+        {
             if (lastHandledFrame == Time.frameCount)
             {
-                return;
+                return false;
             }
 
             lastHandledFrame = Time.frameCount;
@@ -130,7 +141,7 @@ namespace SpaceGame.CommonUI.Modal
                 }
             }
 
-            top?.cancelHandler.Invoke();
+            return top != null && top.cancelHandler.Invoke();
         }
 
         private void OnDestroy()

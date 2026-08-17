@@ -1,18 +1,5 @@
 {
   "dependencies": {
-    "com.unity.2d.animation": {
-      "version": "13.0.5",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.2d.common": "12.0.3",
-        "com.unity.2d.sprite": "1.0.0",
-        "com.unity.collections": "2.4.3",
-        "com.unity.modules.animation": "1.0.0",
-        "com.unity.modules.uielements": "1.0.0"
-      },
-      "url": "https://packages.unity.com"
-    },
     "com.unity.2d.aseprite": {
       "version": "3.0.2",
       "depth": 0,
@@ -128,7 +115,7 @@
     },
     "com.unity.collections": {
       "version": "2.6.6",
-      "depth": 1,
+      "depth": 2,
       "source": "registry",
       "dependencies": {
         "com.unity.burst": "1.8.28",
@@ -189,7 +176,7 @@
     },
     "com.unity.nuget.mono-cecil": {
       "version": "1.11.6",
-      "depth": 2,
+      "depth": 3,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"
@@ -272,7 +259,7 @@
     },
     "com.unity.test-framework.performance": {
       "version": "3.5.0",
-      "depth": 2,
+      "depth": 3,
       "source": "registry",
       "dependencies": {
         "com.unity.test-framework": "1.1.33",

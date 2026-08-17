@@ -1,7 +1,10 @@
 using System;
 using Dev.CSU._02_Scripts.Planet;
 using Dev.CSU._02_Scripts.SceneTransition;
+using Dev.NKY.Scripts.Health;
+using SpaceGame.RunOutcome;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Dev.CSU._02_Scripts.Stage
 {
@@ -19,6 +22,9 @@ namespace Dev.CSU._02_Scripts.Stage
         [SerializeField] private string endingSceneName =
             DefaultEndingSceneName;
 
+        [Tooltip("Player health owns the single terminal outcome and run reward.")]
+        [SerializeField] private Health playerHealth;
+
         private bool _warnedMissingController;
         private bool _endingTransitionRequested;
 
@@ -27,6 +33,11 @@ namespace Dev.CSU._02_Scripts.Stage
             _endingTransitionRequested;
 
         public event Action<int> StageBackgroundReady;
+
+        private void Awake()
+        {
+            ResolvePlayerHealth();
+        }
 
         private void OnEnable()
         {
@@ -42,6 +53,7 @@ namespace Dev.CSU._02_Scripts.Stage
             }
 
             CurrentStageNumber = Mathf.Max(1, planetController.CurrentStageNumber);
+            ResolvePlayerHealth();
         }
 
         private void OnDisable()
@@ -93,17 +105,88 @@ namespace Dev.CSU._02_Scripts.Stage
                 return;
             }
 
+            ResolvePlayerHealth();
+            if (playerHealth == null)
+            {
+                Debug.LogError(
+                    $"{nameof(StageThemeController)} on '{name}' cannot "
+                    + $"complete final stage {completedStageNumber}: no "
+                    + $"{nameof(Health)} component is available to commit "
+                    + "the run reward.",
+                    this);
+                return;
+            }
+
+            playerHealth.TryResolveRunOutcome(
+                RunTerminalOutcome.Success);
+            if (playerHealth.CurrentRunOutcome
+                != RunTerminalOutcome.Success)
+            {
+                Debug.Log(
+                    $"[RunOutcome] Ignored Success for final stage "
+                    + $"{completedStageNumber}; first terminal outcome was "
+                    + $"{playerHealth.CurrentRunOutcome}.",
+                    this);
+                return;
+            }
+
+            if (!playerHealth.TryBeginSceneTransition(
+                    RunTerminalOutcome.Success))
+            {
+                return;
+            }
+
             if (SceneTransitions.TryLoadScene(endingSceneName))
             {
                 _endingTransitionRequested = true;
                 return;
             }
 
-            Debug.LogError(
-                $"{nameof(StageThemeController)} on '{name}' completed final "
-                + $"stage {completedStageNumber}, but the shared scene "
-                + $"transition service could not load '{endingSceneName}'.",
-                this);
+            if (SceneTransitions.TryGetService(
+                    out ISceneTransitionService activeService)
+                && activeService.IsTransitioning)
+            {
+                _endingTransitionRequested = true;
+                Debug.Log(
+                    $"{nameof(StageThemeController)} on '{name}' respected "
+                    + "an already-running scene transition after final "
+                    + $"stage {completedStageNumber}.",
+                    this);
+                return;
+            }
+
+            playerHealth.TryCancelSceneTransition(
+                RunTerminalOutcome.Success);
+            try
+            {
+                Debug.LogWarning(
+                    $"{nameof(StageThemeController)} on '{name}' completed "
+                    + $"final stage {completedStageNumber}, but the shared "
+                    + "transition service was unavailable. Falling back to "
+                    + $"a direct load of '{endingSceneName}'.",
+                    this);
+                _endingTransitionRequested = true;
+                SceneManager.LoadScene(endingSceneName);
+            }
+            catch (Exception exception)
+            {
+                _endingTransitionRequested = false;
+                Debug.LogError(
+                    $"{nameof(StageThemeController)} on '{name}' could not "
+                    + $"load '{endingSceneName}' after final stage "
+                    + $"{completedStageNumber}. "
+                    + $"{exception.GetType().Name}: "
+                    + exception.Message,
+                    this);
+            }
+        }
+
+        private void ResolvePlayerHealth()
+        {
+            if (playerHealth == null)
+            {
+                playerHealth = FindFirstObjectByType<Health>();
+            }
         }
 
         private void WarnMissingControllerOnce()

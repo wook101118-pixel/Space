@@ -24,7 +24,7 @@ MonoBehaviour:
     value: 0
   - type: 1
     modifierType: 0
-    isRandom: 0
+    isRandom: 1
     minValue: 15
     maxValue: 30
     value: 0

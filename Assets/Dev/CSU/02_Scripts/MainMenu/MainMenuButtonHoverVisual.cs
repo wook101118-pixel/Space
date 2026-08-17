@@ -17,6 +17,9 @@ namespace Dev.CSU._02_Scripts.MainMenu
         [SerializeField] private Button targetButton;
         [SerializeField] private Image glowImage;
 
+        [Header("Interaction")]
+        [SerializeField] private bool showOnSelection = true;
+
         [Header("Appearance")]
         [SerializeField] private Color glowColor =
             new Color(0.1f, 0.92f, 0.96f, 0.78f);
@@ -49,15 +52,23 @@ namespace Dev.CSU._02_Scripts.MainMenu
         public float EnterDuration => enterDuration;
         public float ExitDuration => exitDuration;
         public float PulsePeriod => pulsePeriod;
+        public bool ShowOnSelection => showOnSelection;
 
         public void Configure(
             Button button,
             Image image,
-            Color color)
+            Color color,
+            bool selectionShowsVisual = true)
         {
             targetButton = button;
             glowImage = image;
             glowColor = color;
+            showOnSelection = selectionShowsVisual;
+            if (!showOnSelection)
+            {
+                _navigationSelected = false;
+            }
+
             CacheReferences();
 
             if (!Application.isPlaying)
@@ -125,7 +136,8 @@ namespace Dev.CSU._02_Scripts.MainMenu
         public void OnSelect(BaseEventData eventData)
         {
             _navigationSelected =
-                !(eventData is PointerEventData);
+                showOnSelection
+                && !(eventData is PointerEventData);
         }
 
         public void OnDeselect(BaseEventData eventData)
@@ -153,7 +165,8 @@ namespace Dev.CSU._02_Scripts.MainMenu
             return targetButton != null
                 && targetButton.isActiveAndEnabled
                 && targetButton.IsInteractable()
-                && (_pointerInside || _navigationSelected);
+                && (_pointerInside
+                    || (showOnSelection && _navigationSelected));
         }
 
         private float CalculatePulse(bool shouldShow)
@@ -290,6 +303,11 @@ namespace Dev.CSU._02_Scripts.MainMenu
             enterDuration = Mathf.Max(0.01f, enterDuration);
             exitDuration = Mathf.Max(0.01f, exitDuration);
             pulsePeriod = Mathf.Max(0.1f, pulsePeriod);
+            if (!showOnSelection)
+            {
+                _navigationSelected = false;
+            }
+
             CacheReferences();
 
             if (!Application.isPlaying)

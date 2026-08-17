@@ -1,6 +1,7 @@
 using System;
 using Dev.NKY.Scripts;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 
 namespace Dev.CSU._02_Scripts.RocketShooting
@@ -139,6 +140,9 @@ namespace Dev.CSU._02_Scripts.RocketShooting
 
         private void Update()
         {
+            // 임시 함수
+            if(Keyboard.current.eKey.wasPressedThisFrame) BeginLaunch();
+
             float deltaTime = Mathf.Max(0f, Time.deltaTime);
             double frameDistance = AdvanceSequence(deltaTime);
 

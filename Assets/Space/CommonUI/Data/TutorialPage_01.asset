@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TutorialPage_01
   m_EditorClassIdentifier: Space.CommonUI.Runtime::SpaceGame.CommonUI.Tutorial.TutorialPageData
   image: {fileID: 0}
-  title: "\uD658\uC601\uD569\uB2C8\uB2E4"
-  body: "\uC774 \uD398\uC774\uC9C0\uC758 \uC81C\uBAA9, \uBCF8\uBB38, \uC774\uBBF8\uC9C0\uB294
-    TutorialPageData \uC5D0\uC14B\uC5D0\uC11C \uC790\uC720\uB86D\uAC8C \uAD50\uCCB4\uD560
-    \uC218 \uC788\uC2B5\uB2C8\uB2E4."
+  visualHint: 4 × 4 부품 조립
+  title: "로켓 준비"
+  body: "자원으로 엔진·연료·선체·드릴을 강화하고 부품을 4×4 보드에 배치하세요.
+    드래그 중 R 키로 회전하고 Esc 키로 취소할 수 있으며, 잘못 놓으면 원래 위치로 돌아갑니다."

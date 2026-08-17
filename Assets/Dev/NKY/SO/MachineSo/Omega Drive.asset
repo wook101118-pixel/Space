@@ -19,8 +19,8 @@ MonoBehaviour:
   - type: 0
     modifierType: 1
     isRandom: 1
-    minValue: 0.2
-    maxValue: 0.3
+    minValue: 0.15
+    maxValue: 0.25
     value: 0
   - type: 1
     modifierType: 0
@@ -31,8 +31,8 @@ MonoBehaviour:
   - type: 3
     modifierType: 1
     isRandom: 1
-    minValue: 0.2
-    maxValue: 0.35
+    minValue: 0.15
+    maxValue: 0.25
     value: 0
   - type: 2
     modifierType: 0

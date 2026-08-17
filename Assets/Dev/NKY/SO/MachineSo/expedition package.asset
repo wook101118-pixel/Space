@@ -17,13 +17,13 @@ MonoBehaviour:
   partDescription: "\uC7A5\uAC70\uB9AC \uD0D0\uC0AC\uC5D0 \uD2B9\uD654\uB41C \uC7A5\uBE44."
   statData:
   - type: 1
-    modifierType: 0
+    modifierType: 1
     isRandom: 0
     minValue: 0
     maxValue: 0
-    value: 20
+    value: 0.2
   - type: 3
-    modifierType: 0
+    modifierType: 1
     isRandom: 0
     minValue: 0
     maxValue: 0

@@ -1,0 +1,11 @@
+{
+    "name": "Space.RunOutcome.Tests",
+    "rootNamespace": "SpaceGame.RunOutcome.Tests",
+    "references": [
+        "Space.RunOutcome.Runtime"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "autoReferenced": false
+}

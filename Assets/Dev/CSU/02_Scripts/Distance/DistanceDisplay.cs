@@ -125,6 +125,11 @@ namespace Dev.CSU._02_Scripts.Distance
                 return;
             }
 
+            if (distanceText.font != null)
+            {
+                return;
+            }
+
             if (koreanSourceFont == null)
             {
                 Debug.LogWarning(

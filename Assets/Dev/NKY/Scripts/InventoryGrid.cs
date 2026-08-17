@@ -21,6 +21,13 @@ namespace Dev.NKY.Scripts
         {
             cellOwner = new BlockInstance[width, height];
         }
+
+#if UNITY_INCLUDE_TESTS
+        public void InitializeForTests()
+        {
+            cellOwner = new BlockInstance[width, height];
+        }
+#endif
  
         public bool IsInside(Vector2Int cell)
             => cell.x >= 0 && cell.x < width && cell.y >= 0 && cell.y < height;

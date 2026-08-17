@@ -22,6 +22,10 @@ namespace Dev.NKY.Scripts
         [SerializeField, Min(0f)]
         private float fuelConsumptionPerSecond = 1f;
 
+        [Tooltip("How strongly engine power increases fuel use. 0 keeps a flat drain; 1 scales it fully with engine power.")]
+        [SerializeField, Range(0f, 1f)]
+        private float engineFuelConsumptionWeight = 0.5f;
+
         [Header("Applied Rocket Stats")]
         [field: SerializeField] public float EnginePower { get; private set; }
         [field: SerializeField] public float MaxFuel { get; private set; }
@@ -77,7 +81,7 @@ namespace Dev.NKY.Scripts
             }
 
             TryConsumeFuel(
-                fuelConsumptionPerSecond * Time.deltaTime);
+                CalculateFuelConsumptionPerSecond() * Time.deltaTime);
         }
 
         private void OnDestroy()
@@ -124,7 +128,12 @@ namespace Dev.NKY.Scripts
             if (updatedStats.TryGetValue(StatType.Drill, out float drillValue))
             {
                 DrillPower = drillValue;
-                DrillRewardMultiplier = Mathf.Max(1f, DrillPower / BaseStatScale);
+                DrillRewardMultiplier = Mathf.Clamp(
+                    DrillPower
+                    / SpaceGame.RunOutcome.RunRewardCalculator
+                        .DrillStatPointsPerRewardMultiplier,
+                    SpaceGame.RunOutcome.RunRewardCalculator.MinimumRewardMultiplier,
+                    SpaceGame.RunOutcome.RunRewardCalculator.MaximumRewardMultiplier);
 
                 if (health != null)
                 {
@@ -162,6 +171,16 @@ namespace Dev.NKY.Scripts
             }
 
             return consumedFullAmount;
+        }
+
+        public float CalculateFuelConsumptionPerSecond()
+        {
+            float engineScale = Mathf.Max(0f, EnginePower) / BaseStatScale;
+            float weightedScale = Mathf.Lerp(
+                1f,
+                engineScale,
+                engineFuelConsumptionWeight);
+            return fuelConsumptionPerSecond * Mathf.Max(0f, weightedScale);
         }
 
         public void RefillFuel()
@@ -212,6 +231,13 @@ namespace Dev.NKY.Scripts
             }
 
             OnFuelChanged?.Invoke(CurrentFuel, MaxFuel);
+        }
+
+        private void OnValidate()
+        {
+            fuelConsumptionPerSecond = Mathf.Max(0f, fuelConsumptionPerSecond);
+            engineFuelConsumptionWeight = Mathf.Clamp01(
+                engineFuelConsumptionWeight);
         }
     }
 }

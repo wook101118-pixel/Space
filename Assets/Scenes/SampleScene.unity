@@ -3232,7 +3232,7 @@ MonoBehaviour:
   m_XRTrackingOrigin: {fileID: 0}
   m_ActionsAsset: {fileID: 662652920}
   m_PointAction: {fileID: 667088116}
-  m_MoveAction: {fileID: 713251665}
+  m_MoveAction: {fileID: 0}
   m_SubmitAction: {fileID: 1835000537}
   m_CancelAction: {fileID: 2003757678}
   m_LeftClickAction: {fileID: 1245249171}

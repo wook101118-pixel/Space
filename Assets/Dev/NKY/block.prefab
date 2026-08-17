@@ -93,9 +93,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Dev.NKY.Scripts.DraggableBlockView
   dragLayer: {fileID: 0}
   presentPrefab: {fileID: 2872147798625521043, guid: 229719617d1c74c4387cd1fc0eda2997, type: 3}
-  equipSound: {fileID: 11400000, guid: 82bf484bc8b45414f95b1ccad2e38df9, type: 2}
+  equipSound: {fileID: 11400000, guid: 6486f59638419b1479514b83e11412f1, type: 2}
   unEquipSound: {fileID: 11400000, guid: 82bf484bc8b45414f95b1ccad2e38df9, type: 2}
   trashSound: {fileID: 11400000, guid: 12f1aff482faffb4292b52f64c90aff8, type: 2}
+  inputActionAsset: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  rotateActionName: Player/RotateBlock
 --- !u!114 &4025354848873837524
 MonoBehaviour:
   m_ObjectHideFlags: 0

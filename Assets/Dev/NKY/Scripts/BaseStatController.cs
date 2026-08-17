@@ -1,4 +1,5 @@
 using Dev.CSU._02_Scripts.RocketShooting;
+using SpaceGame.RunOutcome;
 using UnityEngine;
 using TMPro; // TextMeshPro 사용 시 (기본 Text 사용 시 UnityEngine.UI로 변경)
 
@@ -6,6 +7,8 @@ namespace Dev.NKY.Scripts
 {
     public class BaseStatController : MonoBehaviour
     {
+        private const string MaximumCostLabel = "MAX";
+
         [System.Serializable]
         public class StatUpgradeInfo
         {
@@ -33,6 +36,11 @@ namespace Dev.NKY.Scripts
 
         private void Start()
         {
+            LoadPersistedCost(engineUpgrade);
+            LoadPersistedCost(fuelUpgrade);
+            LoadPersistedCost(armorUpgrade);
+            LoadPersistedCost(drillUpgrade);
+
             // ★ 게임 시작 시 각 버튼의 소모 자원 텍스트를 초기화합니다.
             UpdateCostUI(engineUpgrade);
             UpdateCostUI(fuelUpgrade);
@@ -45,9 +53,30 @@ namespace Dev.NKY.Scripts
         /// </summary>
         private bool TryUpgradeStat(StatUpgradeInfo info)
         {
-            if (playerStats == null || resourceManager == null)
+            if (info == null
+                || playerStats == null
+                || resourceManager == null)
             {
                 Debug.LogWarning("[BaseStatController] PlayerStats 또는 ResourceManager가 할당되지 않았습니다!");
+                return false;
+            }
+
+            if (HasReachedUpgradeLimit(info))
+            {
+                UpdateCostUI(info);
+                Debug.Log(
+                    $"[Stat] {info.statType} 영구 강화가 최대치에 "
+                    + "도달해 자원을 소모하지 않았습니다.",
+                    this);
+                return false;
+            }
+
+            float appliedIncrease = CalculateAllowedUpgradeAmount(
+                info.statType,
+                playerStats.GetBaseStat(info.statType),
+                info.increaseAmount);
+            if (appliedIncrease <= 0f)
+            {
                 return false;
             }
 
@@ -65,10 +94,16 @@ namespace Dev.NKY.Scripts
 
                 SoundManager.Instance.PlaySFX(statUpSound);
                 // 스탯 증가 처리
-                playerStats.UpgradeBaseStat(info.statType, info.increaseAmount);
+                playerStats.UpgradeBaseStat(info.statType, appliedIncrease);
 
                 // 3. 다음 강화 비용 증가 계산
-                info.currentCost = Mathf.RoundToInt(info.currentCost * info.costMultiplier) + info.flatCostAdd;
+                info.currentCost = CalculateNextUpgradeCost(
+                    info.currentCost,
+                    info.costMultiplier,
+                    info.flatCostAdd);
+                PlayerProgressPersistence.Default.SaveNextUpgradeCost(
+                    info.statType,
+                    info.currentCost);
 
                 // ★ 4. 버튼 텍스트 UI 자동 갱신
                 UpdateCostUI(info);
@@ -90,8 +125,95 @@ namespace Dev.NKY.Scripts
             if (info != null && info.costText != null)
             {
                 // 필요시 `${info.currentCost} G`나 `비용: {info.currentCost}` 형태로 변경 가능합니다.
-                info.costText.text = $"{info.currentCost}";
+                info.costText.text = HasReachedUpgradeLimit(info)
+                    ? MaximumCostLabel
+                    : $"{info.currentCost}";
             }
+        }
+
+        private bool HasReachedUpgradeLimit(StatUpgradeInfo info)
+        {
+            return info != null
+                && playerStats != null
+                && IsPermanentUpgradeAtCap(
+                    info.statType,
+                    playerStats.GetBaseStat(info.statType));
+        }
+
+        public static bool IsPermanentUpgradeAtCap(
+            StatType statType,
+            float permanentBaseValue)
+        {
+            float maximum = PlayerStats.GetMaximumPermanentStat(statType);
+            return !float.IsPositiveInfinity(maximum)
+                && permanentBaseValue >= maximum;
+        }
+
+        public static float CalculateAllowedUpgradeAmount(
+            StatType statType,
+            float permanentBaseValue,
+            float increaseAmount)
+        {
+            if (float.IsNaN(permanentBaseValue)
+                || float.IsInfinity(permanentBaseValue)
+                || float.IsNaN(increaseAmount)
+                || float.IsInfinity(increaseAmount))
+            {
+                return 0f;
+            }
+
+            float safeIncrease = Mathf.Max(0f, increaseAmount);
+            float maximum = PlayerStats.GetMaximumPermanentStat(statType);
+            if (float.IsPositiveInfinity(maximum))
+            {
+                return safeIncrease;
+            }
+
+            float remaining = maximum - permanentBaseValue;
+            return Mathf.Min(safeIncrease, Mathf.Max(0f, remaining));
+        }
+
+        private static void LoadPersistedCost(StatUpgradeInfo info)
+        {
+            if (info == null)
+            {
+                return;
+            }
+
+            info.currentCost =
+                PlayerProgressPersistence.Default
+                    .LoadOrCreateNextUpgradeCost(
+                        info.statType,
+                        info.currentCost);
+        }
+
+        public static int CalculateNextUpgradeCost(
+            int currentCost,
+            float costMultiplier,
+            int flatCostAdd)
+        {
+            int safeCurrentCost = Mathf.Max(0, currentCost);
+            float safeMultiplier =
+                float.IsNaN(costMultiplier)
+                || float.IsInfinity(costMultiplier)
+                    ? 1f
+                    : Mathf.Max(0f, costMultiplier);
+            float scaledCost = safeCurrentCost * safeMultiplier;
+            int multipliedCost =
+                float.IsInfinity(scaledCost)
+                || scaledCost >= int.MaxValue
+                    ? int.MaxValue
+                    : Mathf.RoundToInt(scaledCost);
+            long nextCost = (long)multipliedCost + flatCostAdd;
+
+            if (nextCost <= 0L)
+            {
+                return 0;
+            }
+
+            return nextCost >= int.MaxValue
+                ? int.MaxValue
+                : (int)nextCost;
         }
 
         // ==========================================

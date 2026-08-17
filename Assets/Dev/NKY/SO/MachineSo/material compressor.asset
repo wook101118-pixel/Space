@@ -19,12 +19,12 @@ MonoBehaviour:
   - type: 3
     modifierType: 1
     isRandom: 1
-    minValue: 0.2
-    maxValue: 0.7
+    minValue: 0.15
+    maxValue: 0.3
     value: 0
   - type: 0
     modifierType: 0
     isRandom: 1
-    minValue: -20
+    minValue: -15
     maxValue: -5
     value: 0

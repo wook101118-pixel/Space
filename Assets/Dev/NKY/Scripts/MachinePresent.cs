@@ -20,6 +20,19 @@ namespace Dev.NKY.Scripts
         [SerializeField] private TextMeshProUGUI statText;
         [SerializeField] private SoundDataSO popUpOnSound;
         [SerializeField] private SoundDataSO popUpOffSound;
+        [SerializeField, Min(0.1f)]
+        [Tooltip("툴팁 열기/닫기 사운드의 전역 재생 간격입니다. 권장 범위: 0.1~1초")]
+        private float soundCooldown = 0.25f;
+
+        private const float MinimumSoundCooldown = 0.1f;
+        private static float s_NextSoundTime = float.NegativeInfinity;
+        private bool _isVisible;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetSoundCooldown()
+        {
+            s_NextSoundTime = float.NegativeInfinity;
+        }
 
         public void Initialize(MachinePartsDataSo data)
         {
@@ -71,16 +84,57 @@ namespace Dev.NKY.Scripts
         public void Show(Vector3 position)
         {
             transform.position = position;
+
+            bool stateChanged = !_isVisible;
+            _isVisible = true;
             gameObject.SetActive(true);
-            SoundManager.Instance.PlaySFX(popUpOnSound);
+
+            if (stateChanged)
+            {
+                TryPlaySound(popUpOnSound);
+            }
         }
 
         public void Hide()
         {
-            SoundManager.Instance.PlaySFX(popUpOffSound);
+            SetHidden(true);
+        }
+
+        public void HideSilently()
+        {
+            SetHidden(false);
+        }
+
+        private void SetHidden(bool playSound)
+        {
+            bool stateChanged = _isVisible;
+            _isVisible = false;
+
+            if (stateChanged && playSound)
+            {
+                TryPlaySound(popUpOffSound);
+            }
+
             gameObject.SetActive(false);
         }
-        
-        
+
+        private void TryPlaySound(SoundDataSO soundData)
+        {
+            SoundManager soundManager = SoundManager.Instance;
+            if (soundManager == null || soundData == null)
+            {
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            if (now < s_NextSoundTime)
+            {
+                return;
+            }
+
+            float cooldown = Mathf.Max(MinimumSoundCooldown, soundCooldown);
+            s_NextSoundTime = now + cooldown;
+            soundManager.PlaySFX(soundData);
+        }
     }
 }

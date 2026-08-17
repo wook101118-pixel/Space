@@ -135,6 +135,7 @@ MonoBehaviour:
   statText: {fileID: 8713833615350402091}
   popUpOnSound: {fileID: 11400000, guid: 58dd4d7c4a1895d47bb582e92ed90a9c, type: 2}
   popUpOffSound: {fileID: 11400000, guid: 2477d6c2b672152428762d17402fc1e6, type: 2}
+  soundCooldown: 0.25
 --- !u!225 &9134629206626302015
 CanvasGroup:
   m_ObjectHideFlags: 0

@@ -20,6 +20,8 @@ namespace SpaceGame.CommonUI.Views
         private InputBindingCatalog catalog;
         private ModalCancelRouter cancelRouter;
         private Action<string> statusChanged;
+        private Action<InputBindingRowView> rebindStarted;
+        private Action<InputBindingRowView> rebindEnded;
         private InputActionRebindingExtensions.RebindingOperation operation;
         private IDisposable cancelRegistration;
         private bool actionWasEnabled;
@@ -42,12 +44,16 @@ namespace SpaceGame.CommonUI.Views
             InputBindingDefinition bindingDefinition,
             InputBindingCatalog bindingCatalog,
             ModalCancelRouter router,
-            Action<string> onStatusChanged)
+            Action<string> onStatusChanged,
+            Action<InputBindingRowView> onRebindStarted = null,
+            Action<InputBindingRowView> onRebindEnded = null)
         {
             definition = bindingDefinition;
             catalog = bindingCatalog;
             cancelRouter = router;
             statusChanged = onStatusChanged;
+            rebindStarted = onRebindStarted;
+            rebindEnded = onRebindEnded;
             displayNameText.text = definition.DisplayName;
             rebindButton.onClick.AddListener(BeginRebind);
             resetButton.onClick.AddListener(ResetBinding);
@@ -89,7 +95,9 @@ namespace SpaceGame.CommonUI.Views
                 return;
             }
 
-            InputAction action = definition.ActionReference.action;
+            rebindStarted?.Invoke(this);
+
+            InputAction action = definition.Action;
             actionWasEnabled = action.enabled;
             if (actionWasEnabled)
             {
@@ -109,6 +117,25 @@ namespace SpaceGame.CommonUI.Views
             {
                 operation.WithControlsHavingToMatchPath(
                     $"<{deviceLayout}>");
+
+                // WithTargetBinding also includes every device required by
+                // the Keyboard&Mouse control scheme. Include paths are ORed,
+                // so explicitly exclude the opposite device to keep keyboard
+                // rows on the keyboard and the UI click row on the mouse.
+                if (string.Equals(
+                        deviceLayout,
+                        "Keyboard",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    operation.WithControlsExcluding("<Mouse>");
+                }
+                else if (string.Equals(
+                             deviceLayout,
+                             "Mouse",
+                             StringComparison.OrdinalIgnoreCase))
+                {
+                    operation.WithControlsExcluding("<Keyboard>");
+                }
             }
 
             foreach (string forbiddenPath in catalog.ForbiddenControlPaths)
@@ -117,6 +144,8 @@ namespace SpaceGame.CommonUI.Views
             }
 
             operation
+                .OnMatchWaitForAnother(0f)
+                .WithCancelingThrough("<Keyboard>/escape")
                 .OnPotentialMatch(ValidatePotentialMatch)
                 .OnCancel(OnRebindCancelled)
                 .OnComplete(OnRebindCompleted)
@@ -135,19 +164,23 @@ namespace SpaceGame.CommonUI.Views
             if (catalog.IsForbidden(selectedControl))
             {
                 statusChanged?.Invoke("이 입력은 사용할 수 없습니다.");
-                currentOperation.Cancel();
+                currentOperation.RemoveCandidate(selectedControl);
                 return;
             }
 
-            if (catalog.HasDuplicate(
+            if (catalog.TryFindConflict(
                     definition,
                     selectedControl,
-                    out InputBindingDefinition duplicate))
+                    out _,
+                    out string conflictDisplayName))
             {
                 statusChanged?.Invoke(
-                    $"이미 사용 중인 키입니다: {duplicate.DisplayName}");
-                currentOperation.Cancel();
+                    $"이미 사용 중인 키입니다: {conflictDisplayName}");
+                currentOperation.RemoveCandidate(selectedControl);
+                return;
             }
+
+            currentOperation.Complete();
         }
 
         private void OnRebindCancelled(
@@ -170,7 +203,7 @@ namespace SpaceGame.CommonUI.Views
 
         private void CleanupOperation()
         {
-            InputAction action = definition.ActionReference.action;
+            InputAction action = definition.Action;
             operation?.Dispose();
             operation = null;
             cancelRegistration?.Dispose();
@@ -181,16 +214,19 @@ namespace SpaceGame.CommonUI.Views
             }
 
             actionWasEnabled = false;
+            rebindEnded?.Invoke(this);
         }
 
         private void ResetBinding()
         {
+            CancelRebind();
+
             if (!definition.TryGetBindingIndex(out int bindingIndex))
             {
                 return;
             }
 
-            definition.ActionReference.action.RemoveBindingOverride(bindingIndex);
+            definition.Action.RemoveBindingOverride(bindingIndex);
             catalog.NotifyBindingsChanged();
             statusChanged?.Invoke(
                 $"{definition.DisplayName} 기본값을 복원했습니다.");

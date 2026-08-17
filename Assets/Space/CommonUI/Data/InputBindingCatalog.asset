@@ -13,16 +13,65 @@ MonoBehaviour:
   m_Name: InputBindingCatalog
   m_EditorClassIdentifier: Space.CommonUI.Runtime::SpaceGame.CommonUI.Input.InputBindingCatalog
   actionAsset: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
-  cancelAction: {fileID: 7727032971491509709, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  cancelAction: {fileID: 0}
+  cancelActionPath: Common/Cancel
   bindings:
-  - displayName: "\uC67C\uCABD \uC774\uB3D9"
-    action: {fileID: -1680190386980627800, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+  - displayName: "우주선 왼쪽 조작 - 기본 키"
+    action: {fileID: 0}
+    actionPath: Player/Move
     bindingId: d2581a9b-1d11-4566-b27d-b92aff5fabbc
     controlScheme: Keyboard&Mouse
-  - displayName: "\uC624\uB978\uCABD \uC774\uB3D9"
-    action: {fileID: -1680190386980627800, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+    conflictGroup: Gameplay
+    logicalBinding: ShipLeft
+    reserved: 0
+  - displayName: "우주선 왼쪽 조작 - 보조 키"
+    action: {fileID: 0}
+    actionPath: Player/Move
+    bindingId: 2e46982e-44cc-431b-9f0b-c11910bf467a
+    controlScheme: Keyboard&Mouse
+    conflictGroup: Gameplay
+    logicalBinding: ShipLeft
+    reserved: 0
+  - displayName: "우주선 오른쪽 조작 - 기본 키"
+    action: {fileID: 0}
+    actionPath: Player/Move
     bindingId: fcfe95b8-67b9-4526-84b5-5d0bc98d6400
     controlScheme: Keyboard&Mouse
+    conflictGroup: Gameplay
+    logicalBinding: ShipRight
+    reserved: 0
+  - displayName: "우주선 오른쪽 조작 - 보조 키"
+    action: {fileID: 0}
+    actionPath: Player/Move
+    bindingId: 77bff152-3580-4b21-b6de-dcd0c7e41164
+    controlScheme: Keyboard&Mouse
+    conflictGroup: Gameplay
+    logicalBinding: ShipRight
+    reserved: 0
+  - displayName: "기계 부품 회전"
+    action: {fileID: 0}
+    actionPath: Player/RotateBlock
+    bindingId: 3d26de7f-cecf-445d-ad13-976140bb1d4c
+    controlScheme: Keyboard&Mouse
+    conflictGroup: Gameplay
+    logicalBinding: RotateBlock
+    reserved: 0
+  - displayName: "공통 취소 / 닫기"
+    action: {fileID: 0}
+    actionPath: Common/Cancel
+    bindingId: bfd8db9d-e9ca-4ffd-8f64-66a4601e599b
+    controlScheme: Keyboard&Mouse
+    conflictGroup: CommonUI
+    logicalBinding: CommonCancel
+    reserved: 1
+  - displayName: "UI 클릭"
+    action: {fileID: 0}
+    actionPath: UI/Click
+    bindingId: 4faf7dc9-b979-4210-aa8c-e808e1ef89f5
+    controlScheme: Keyboard&Mouse
+    conflictGroup: UIPointer
+    logicalBinding: UIClick
+    reserved: 0
   forbiddenControlPaths:
   - <Keyboard>/escape
   - <Keyboard>/printScreen

@@ -1,8 +1,7 @@
-using System;
 using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Dev.NKY.Scripts
 {
@@ -12,26 +11,50 @@ namespace Dev.NKY.Scripts
         
         [SerializeField] private TextMeshProUGUI statText;
         
-        private Dictionary<StatType, float> _finalStats;
+        private readonly StringBuilder _textBuilder = new StringBuilder(128);
 
-        public void Update()
+        private void OnEnable()
         {
-           
-                ChackStats();
-            
+            if (stat != null)
+            {
+                stat.OnAllStatsUpdated += RenderStats;
+            }
         }
 
-        private void ChackStats()
+        private void Start()
         {
-            _finalStats = stat.GetAllFinalStats();
-            statText.text = "";
-            foreach (KeyValuePair<StatType, float> finalStat in _finalStats)
+            if (stat != null)
             {
-                string displayName =
-                    finalStat.Key.ToKoreanDescription();
-                statText.text +=
-                    $"{displayName}: {(int)finalStat.Value}\n";
+                RenderStats(stat.GetAllFinalStats());
             }
+        }
+
+        private void OnDisable()
+        {
+            if (stat != null)
+            {
+                stat.OnAllStatsUpdated -= RenderStats;
+            }
+        }
+
+        private void RenderStats(Dictionary<StatType, float> finalStats)
+        {
+            if (statText == null || finalStats == null)
+            {
+                return;
+            }
+
+            _textBuilder.Clear();
+            foreach (KeyValuePair<StatType, float> finalStat in finalStats)
+            {
+                _textBuilder
+                    .Append(finalStat.Key.ToKoreanDescription())
+                    .Append(": ")
+                    .Append(Mathf.CeilToInt(finalStat.Value))
+                    .AppendLine();
+            }
+
+            statText.text = _textBuilder.ToString();
         }
     }
 }

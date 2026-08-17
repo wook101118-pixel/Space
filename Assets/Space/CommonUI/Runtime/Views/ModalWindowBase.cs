@@ -23,6 +23,9 @@ namespace SpaceGame.CommonUI.Views
         private IDisposable cancelRegistration;
         private Coroutine fadeRoutine;
 
+        public event Action OpenTransitionStarted;
+        public event Action CloseTransitionStarted;
+
         public bool IsOpen { get; private set; }
         protected CommonUIContext Context => context;
 
@@ -65,6 +68,7 @@ namespace SpaceGame.CommonUI.Views
 
             OnOpened();
             FadeTo(1f);
+            OpenTransitionStarted?.Invoke();
         }
 
         public void RequestClose()
@@ -96,6 +100,7 @@ namespace SpaceGame.CommonUI.Views
             pauseLease = null;
             OnClosed();
             FadeTo(0f);
+            CloseTransitionStarted?.Invoke();
         }
 
         protected virtual bool CanOpen()

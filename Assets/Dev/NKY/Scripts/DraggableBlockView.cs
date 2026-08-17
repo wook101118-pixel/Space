@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
+using Dev.CSU._02_Scripts.RocketShooting;
 using Dev.NKY.Scripts.Dev.NKY.Scripts;
+using SpaceGame.CommonUI.Modal;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -16,6 +19,12 @@ namespace Dev.NKY.Scripts
         [SerializeField] private SoundDataSO equipSound;
         [SerializeField] private SoundDataSO unEquipSound;
         [SerializeField] private SoundDataSO trashSound;
+        [SerializeField] private InputActionAsset inputActionAsset;
+        [SerializeField] private string rotateActionName = "Player/RotateBlock";
+
+        private static readonly Dictionary<InputAction, ActionEnableLease>
+            RotateActionLeases =
+                new Dictionary<InputAction, ActionEnableLease>();
 
         private InventoryGrid grid;
         private InventoryGridView gridView;
@@ -36,6 +45,7 @@ namespace Dev.NKY.Scripts
         private int dragStartRotation;
         private bool dragStartIsPlaced;
         private Vector2Int dragStartCell;
+        private BlockInstance dragStartInstance;
         private Transform originalParent;
         private Vector2 dragOffset;
         private int rotation;
@@ -43,6 +53,11 @@ namespace Dev.NKY.Scripts
         private bool isPlaced;
         private PointerEventData currentEventData;
         private RectTransform dragParentRect;
+        private InputAction rotateAction;
+        private bool hasRotateActionLease;
+        private ModalCancelRouter cancelRouter;
+        private IDisposable dragCancelRegistration;
+        private bool dragCancelled;
 
         private float CellSize => gridView != null ? gridView.CellSize : 64f;
 
@@ -53,6 +68,23 @@ namespace Dev.NKY.Scripts
             visualizer = GetComponent<BlockVisualizer>();
 
             if (TryGetComponent<Image>(out var rootImg)) rootImg.enabled = false;
+        }
+
+        private void OnEnable()
+        {
+            ResolveRotateAction();
+        }
+
+        private void OnDisable()
+        {
+            ReleaseRotateAction();
+            ReleaseDragCancelRegistration();
+            rotateAction = null;
+
+            if (_present != null)
+            {
+                _present.HideSilently();
+            }
         }
 
         public void Initialize(BlockData blockData, MachinePartsDataSo statData, InventoryGrid gridRef, InventoryGridView gridViewRef, Transform home)
@@ -75,6 +107,11 @@ namespace Dev.NKY.Scripts
 
             if (MachinePartsData != null && MachinePartsData.statData != null)
             {
+                float shapeEfficiency = GetShapeEfficiencyMultiplier(
+                    data != null && data.cells != null
+                        ? data.cells.Count
+                        : 4);
+
                 for (int i = 0; i < MachinePartsData.statData.Count; i++)
                 {
                     var stat = MachinePartsData.statData[i];
@@ -82,8 +119,12 @@ namespace Dev.NKY.Scripts
                     // Random.Range (float/int 판별하여 무작위 값 할당)
                     if (stat.isRandom) 
                     {
-                        stat.value = Random.Range(stat.minValue, stat.maxValue);
+                        float minimum = Mathf.Min(stat.minValue, stat.maxValue);
+                        float maximum = Mathf.Max(stat.minValue, stat.maxValue);
+                        stat.value = Random.Range(minimum, maximum);
                     }
+
+                    stat.value *= shapeEfficiency;
             
                     // struct일 경우 대비하여 원본 리스트에 다시 덮어쓰기
                     MachinePartsData.statData[i] = stat;
@@ -95,16 +136,111 @@ namespace Dev.NKY.Scripts
             if (present != null)
             {
                 present.Initialize(MachinePartsData);
-                present.Hide();
+                present.HideSilently();
             }
         }
         
+        public static float GetShapeEfficiencyMultiplier(int occupiedCells)
+        {
+            return Mathf.Max(1, occupiedCells) / 4f;
+        }
+
         private void Update()
         {
-            if (isDragging && Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
+            if (isDragging &&
+                rotateAction != null &&
+                rotateAction.enabled &&
+                rotateAction.WasPressedThisFrame())
             {
                 RotateBlock();
             }
+        }
+
+        private void ResolveRotateAction()
+        {
+            rotateAction = null;
+
+            if (inputActionAsset == null)
+            {
+                Debug.LogWarning(
+                    "[Inventory] DraggableBlockView에 InputActionAsset이 "
+                    + "할당되지 않아 부품 회전 입력을 사용할 수 없습니다.",
+                    this);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(rotateActionName))
+            {
+                Debug.LogWarning(
+                    "[Inventory] 부품 회전 Input Action 이름이 비어 있습니다.",
+                    this);
+                return;
+            }
+
+            rotateAction = inputActionAsset.FindAction(
+                rotateActionName,
+                false);
+            if (rotateAction == null)
+            {
+                Debug.LogWarning(
+                    $"[Inventory] Input Action '{rotateActionName}'을(를) "
+                    + $"'{inputActionAsset.name}'에서 찾지 못했습니다.",
+                    this);
+            }
+        }
+
+        private void AcquireRotateAction()
+        {
+            if (rotateAction == null || hasRotateActionLease)
+            {
+                return;
+            }
+
+            if (!RotateActionLeases.TryGetValue(
+                    rotateAction,
+                    out ActionEnableLease lease))
+            {
+                lease = new ActionEnableLease
+                {
+                    enabledByViews = !rotateAction.enabled
+                };
+                RotateActionLeases.Add(rotateAction, lease);
+
+                if (lease.enabledByViews)
+                {
+                    rotateAction.Enable();
+                }
+            }
+
+            lease.userCount++;
+            hasRotateActionLease = true;
+        }
+
+        private void ReleaseRotateAction()
+        {
+            if (!hasRotateActionLease || rotateAction == null)
+            {
+                hasRotateActionLease = false;
+                return;
+            }
+
+            if (RotateActionLeases.TryGetValue(
+                    rotateAction,
+                    out ActionEnableLease lease))
+            {
+                lease.userCount--;
+                if (lease.userCount <= 0)
+                {
+                    if (lease.enabledByViews && rotateAction.enabled)
+                    {
+                        rotateAction.Disable();
+                    }
+
+                    RotateActionLeases.Remove(rotateAction);
+                }
+            }
+
+            hasRotateActionLease = false;
         }
 
         private void RotateBlock()
@@ -133,11 +269,15 @@ namespace Dev.NKY.Scripts
             }
             
             isDragging = true;
+            dragCancelled = false;
+            AcquireRotateAction();
+            RegisterDragCancel();
             currentEventData = eventData;
             dragStartAnchoredPos = rect.anchoredPosition;
             dragStartRotation = rotation;
             dragStartIsPlaced = isPlaced;
             dragStartCell = instance != null ? instance.origin : Vector2Int.zero;
+            dragStartInstance = instance;
             originalParent = rect.parent;
 
             if (instance != null)
@@ -188,7 +328,15 @@ namespace Dev.NKY.Scripts
 
         public void OnEndDrag(PointerEventData eventData)
         {
+            if (dragCancelled)
+            {
+                dragCancelled = false;
+                return;
+            }
+
             isDragging = false;
+            ReleaseRotateAction();
+            ReleaseDragCancelRegistration();
             currentEventData = null;
             canvasGroup.blocksRaycasts = true;
             gridView.ClearPreview();
@@ -231,8 +379,131 @@ namespace Dev.NKY.Scripts
             }
 
             // 3. 실패 시 슬롯으로 복귀
+            RestoreDragStartState();
+        }
+
+        private void RegisterDragCancel()
+        {
+            ReleaseDragCancelRegistration();
+            if (cancelRouter == null)
+            {
+                cancelRouter = FindFirstObjectByType<ModalCancelRouter>();
+            }
+
+            if (cancelRouter != null)
+            {
+                dragCancelRegistration = cancelRouter.Push(
+                    CancelActiveDrag,
+                    500);
+            }
+        }
+
+        private bool CancelActiveDrag()
+        {
+            if (!isDragging)
+            {
+                return false;
+            }
+
+            isDragging = false;
+            dragCancelled = true;
+            ReleaseRotateAction();
+            currentEventData = null;
+            canvasGroup.blocksRaycasts = true;
+            gridView?.ClearPreview();
+            RestoreDragStartState();
+            ReleaseDragCancelRegistration();
+            return true;
+        }
+
+        private void ReleaseDragCancelRegistration()
+        {
+            dragCancelRegistration?.Dispose();
+            dragCancelRegistration = null;
+        }
+
+        private void RestoreDragStartState()
+        {
+            rotation = dragStartRotation;
+
+            if (dragStartIsPlaced)
+            {
+                BlockInstance restored =
+                    dragStartInstance
+                    ?? new BlockInstance(
+                        data,
+                        MachinePartsData,
+                        dragStartCell,
+                        dragStartRotation);
+
+                if (grid.TryPlace(restored))
+                {
+                    instance = restored;
+                    isPlaced = true;
+                    visualizer.RebuildVisual(
+                        rect,
+                        data,
+                        rotation,
+                        CellSize,
+                        isPlaced);
+                    rect.SetParent(
+                        originalParent != null
+                            ? originalParent
+                            : gridView.transform,
+                        worldPositionStays: false);
+
+                    Vector2Int topLeftCell =
+                        BlockLayoutCalculator.GetTopLeftGridCell(
+                            dragStartCell,
+                            BlockShapeUtility.GetRotatedCells(
+                                data.cells,
+                                dragStartRotation));
+                    rect.anchoredPosition =
+                        gridView.GridCellToAnchoredPosition(topLeftCell);
+                    rect.localScale = Vector3.one;
+                    RocketShootingSoundPlayer.Play(
+                        RocketShootingSoundCue.PartEquipFailed);
+                    return;
+                }
+
+                Debug.LogError(
+                    "[Inventory] Could not restore a block to its "
+                    + "original cells after an invalid drop. Returning it "
+                    + "to the tray to keep grid and stat state coherent.",
+                    this);
+            }
+
+            RestoreUnplacedDragStart();
+        }
+
+        private void RestoreUnplacedDragStart()
+        {
             SoundManager.Instance.PlaySFX(unEquipSound);
-            ReturnToTray();
+            instance = null;
+            isPlaced = false;
+            visualizer.RebuildVisual(
+                rect,
+                data,
+                rotation,
+                CellSize,
+                isPlaced);
+            Transform targetParent = dragStartIsPlaced
+                ? homeParent
+                : originalParent != null
+                    ? originalParent
+                    : homeParent;
+            rect.SetParent(
+                targetParent,
+                worldPositionStays: false);
+            rect.anchoredPosition = dragStartIsPlaced
+                ? Vector2.zero
+                : dragStartAnchoredPos;
+            rect.localScale = Vector3.one;
+
+            if (dragStartIsPlaced)
+            {
+                OnUnplaced?.Invoke(this);
+            }
         }
 
         public void ReturnToTray()
@@ -284,8 +555,6 @@ namespace Dev.NKY.Scripts
             {
                 Transform targetLayer = GetDragLayer();
                 _present = Instantiate(presentPrefab, targetLayer);
-                _present.Initialize(MachinePartsData);
-                _present.Hide();
             }
             return _present;
         }
@@ -345,10 +614,19 @@ namespace Dev.NKY.Scripts
         // 오브젝트 파괴 시 툴팁도 함께 정리
         private void OnDestroy()
         {
+            ReleaseRotateAction();
+            ReleaseDragCancelRegistration();
+
             if (_present != null)
             {
                 Destroy(_present.gameObject);
             }
+        }
+
+        private sealed class ActionEnableLease
+        {
+            public int userCount;
+            public bool enabledByViews;
         }
         
         

@@ -1,26 +1,42 @@
 using Dev.CSU._02_Scripts.Distance;
+using SpaceGame.RunOutcome;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Dev.NKY.Scripts.Health
 {
     public class Health : DamageTask
     {
-        private const float MetersPerResource = 1000f;
-
-        [Header("Death Reward")]
+        [Header("Run Reward")]
         [SerializeField] private ResourceManager resourceManager;
         [SerializeField] private HorizontalDistanceTracker distanceTracker;
-        [SerializeField, Min(1f)] private float deathRewardMultiplier = 1f;
+        [SerializeField, Range(
+            RunRewardCalculator.MinimumRewardMultiplier,
+            RunRewardCalculator.MaximumRewardMultiplier)]
+        private float deathRewardMultiplier = 1f;
+        [SerializeField, Min(0)] private int successRewardBonus = 500;
 
-        private bool _deathRewardGranted;
+        private readonly RunOutcomeState _runOutcomeState =
+            new RunOutcomeState();
 
+        public RunTerminalOutcome CurrentRunOutcome =>
+            _runOutcomeState.Outcome;
+        public bool RunRewardCommitted =>
+            _runOutcomeState.RewardCommitted;
+        public int LastRunReward { get; private set; }
         public int LastDeathReward { get; private set; }
+        public float LastRewardDistanceMeters { get; private set; }
+        public float LastRewardMultiplier { get; private set; } = 1f;
+        public int LastResourceBalanceBefore { get; private set; }
+        public int LastResourceBalanceAfter { get; private set; }
 
         public override void Awake()
         {
             base.Awake();
+            ResolveRewardDependencies();
+        }
 
+        private void ResolveRewardDependencies()
+        {
             if (resourceManager == null)
             {
                 resourceManager = FindFirstObjectByType<ResourceManager>();
@@ -32,80 +48,139 @@ namespace Dev.NKY.Scripts.Health
             }
         }
 
-        private void OnEnable()
+        public int CalculateRunReward()
         {
-            DeadEvent += HandleDeathReward;
-        }
-
-        private void OnDisable()
-        {
-            DeadEvent -= HandleDeathReward;
-        }
-
-        private void Update()
-        {
-            if (Keyboard.current != null
-                && Keyboard.current.eKey.wasPressedThisFrame)
-            {
-                TakeDamage(2);
-            }
+            float distanceMeters = distanceTracker != null
+                ? distanceTracker.DistanceMeters
+                : 0f;
+            return RunRewardCalculator.Calculate(
+                distanceMeters,
+                deathRewardMultiplier);
         }
 
         public int CalculateDeathReward()
         {
-            if (distanceTracker == null)
+            return CalculateRunReward();
+        }
+
+        public bool TryResolveRunOutcome(RunTerminalOutcome outcome)
+        {
+            if (outcome == RunTerminalOutcome.None)
             {
-                return 0;
+                return false;
             }
 
-            int distanceReward = Mathf.FloorToInt(
-                Mathf.Max(0f, distanceTracker.DistanceMeters)
-                / MetersPerResource);
-            return Mathf.FloorToInt(distanceReward * deathRewardMultiplier);
+            ResolveRewardDependencies();
+            if (resourceManager == null)
+            {
+                Debug.LogError(
+                    "[Health] Cannot resolve the run outcome because no "
+                    + "ResourceManager is available.",
+                    this);
+                return false;
+            }
+
+            if (!_runOutcomeState.TryResolve(outcome))
+            {
+                return false;
+            }
+
+            LastRewardDistanceMeters = distanceTracker != null
+                ? Mathf.Max(0f, distanceTracker.DistanceMeters)
+                : 0f;
+            LastRewardMultiplier = NormalizeRewardMultiplier(
+                deathRewardMultiplier);
+            int distanceReward = RunRewardCalculator.Calculate(
+                LastRewardDistanceMeters,
+                LastRewardMultiplier);
+            int outcomeBonus = outcome == RunTerminalOutcome.Success
+                ? Mathf.Max(0, successRewardBonus)
+                : 0;
+            LastRunReward = SaturatingAdd(distanceReward, outcomeBonus);
+            LastResourceBalanceBefore = resourceManager.CurrentResource;
+
+            if (!_runOutcomeState.TryCommitReward(outcome))
+            {
+                Debug.LogError(
+                    $"[Health] Outcome '{outcome}' was resolved without an "
+                    + "available reward commit.",
+                    this);
+                return false;
+            }
+
+            resourceManager.AddResource(LastRunReward);
+            LastResourceBalanceAfter = resourceManager.CurrentResource;
+            LastDeathReward = outcome == RunTerminalOutcome.Death
+                ? LastRunReward
+                : 0;
+
+            Debug.Log(
+                $"[RunOutcome] outcome={outcome}, "
+                + $"distance={LastRewardDistanceMeters:F1}m, "
+                + $"multiplier={LastRewardMultiplier:F2}, "
+                + $"reward={LastRunReward}, "
+                + $"balance={LastResourceBalanceBefore}"
+                + $"->{LastResourceBalanceAfter}.",
+                this);
+            return true;
+        }
+
+        public bool TryBeginSceneTransition(RunTerminalOutcome outcome)
+        {
+            return _runOutcomeState.TryBeginTransition(outcome);
+        }
+
+        public bool TryCancelSceneTransition(RunTerminalOutcome outcome)
+        {
+            return _runOutcomeState.TryCancelTransition(outcome);
         }
 
         public void SetDeathRewardMultiplier(float multiplier)
         {
-            if (float.IsNaN(multiplier) || float.IsInfinity(multiplier))
-            {
-                deathRewardMultiplier = 1f;
-                return;
-            }
-
-            deathRewardMultiplier = Mathf.Max(1f, multiplier);
+            deathRewardMultiplier = NormalizeRewardMultiplier(multiplier);
         }
 
         protected override void OnHealthReset()
         {
-            _deathRewardGranted = false;
+            _runOutcomeState.Reset();
+            LastRunReward = 0;
             LastDeathReward = 0;
+            LastRewardDistanceMeters = 0f;
+            LastRewardMultiplier = 1f;
+            LastResourceBalanceBefore = 0;
+            LastResourceBalanceAfter = 0;
         }
 
-        private void HandleDeathReward()
+        public override void Dead()
         {
-            if (_deathRewardGranted)
+            if (IsDead)
             {
                 return;
             }
 
-            _deathRewardGranted = true;
-            LastDeathReward = CalculateDeathReward();
+            TryResolveRunOutcome(RunTerminalOutcome.Death);
+            base.Dead();
+        }
 
-            if (resourceManager == null)
+        private static float NormalizeRewardMultiplier(float multiplier)
+        {
+            if (float.IsNaN(multiplier) || float.IsInfinity(multiplier))
             {
-                Debug.LogError(
-                    "[Health] Cannot grant the death reward because no ResourceManager is available.",
-                    this);
-                return;
+                return 1f;
             }
 
-            resourceManager.AddResource(LastDeathReward);
-            Debug.Log(
-                $"[Health] Death reward granted once: {LastDeathReward} "
-                + $"(distance: {distanceTracker?.DistanceMeters ?? 0f:F1} m, "
-                + $"drill multiplier: x{deathRewardMultiplier:F2}, "
-                + $"balance: {resourceManager.CurrentResource}).",
-                this);
+            return Mathf.Clamp(
+                multiplier,
+                RunRewardCalculator.MinimumRewardMultiplier,
+                RunRewardCalculator.MaximumRewardMultiplier);
+        }
+
+        private static int SaturatingAdd(int left, int right)
+        {
+            long sum = (long)left + right;
+            return sum >= int.MaxValue
+                ? int.MaxValue
+                : (int)sum;
         }
     }
 }

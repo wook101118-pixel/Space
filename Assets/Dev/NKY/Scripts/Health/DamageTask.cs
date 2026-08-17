@@ -8,6 +8,8 @@ namespace Dev.NKY.Scripts.Health
 {
     public abstract class DamageTask : MonoBehaviour, IDamageable
     {
+        public static bool DamageSystemEnabled { get; private set; } = true;
+
         [field:SerializeField] public HealthDataSo Data { get; private set; }
         public float MaxHealth { get; private set; }
         public float CurrentHealth { get; private set; }
@@ -17,10 +19,24 @@ namespace Dev.NKY.Scripts.Health
         [SerializeField] private Slider healthSlider;
         [SerializeField] private Slider bgHealthSlider;
         [SerializeField] private TextMeshProUGUI healthText;
+
+        private Sequence healthUiSequence;
         
         public event Action DeadEvent;
         public event Action<float> DamageTaken;
-        
+
+        [RuntimeInitializeOnLoadMethod(
+            RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetDamageSystemState()
+        {
+            DamageSystemEnabled = true;
+        }
+
+        public static void SetDamageSystemEnabled(bool enabled)
+        {
+            DamageSystemEnabled = enabled;
+        }
+
         public void HealthInit()
         {
             MaxHealth = Data.maxHealth;
@@ -42,6 +58,16 @@ namespace Dev.NKY.Scripts.Health
             HealthInit();
         }
 
+        protected virtual void OnDisable()
+        {
+            KillHealthUiSequence();
+        }
+
+        protected virtual void OnDestroy()
+        {
+            KillHealthUiSequence();
+        }
+
         public void ResetHealth()
         {
             CurrentHealth = MaxHealth;
@@ -56,7 +82,8 @@ namespace Dev.NKY.Scripts.Health
 
         public void TakeDamage(float damage)
         {
-            if (IsDead
+            if (!DamageSystemEnabled
+                || IsDead
                 || damage <= 0f
                 || float.IsNaN(damage)
                 || float.IsInfinity(damage))
@@ -89,21 +116,43 @@ namespace Dev.NKY.Scripts.Health
                     $"{Mathf.CeilToInt(currentHealth)} / {Mathf.CeilToInt(maxHealth)}";
             }
 
-            Sequence seq = DOTween.Sequence();
+            KillHealthUiSequence();
+
+            if (healthSlider == null && bgHealthSlider == null)
+            {
+                return;
+            }
+
+            healthUiSequence = DOTween.Sequence()
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
             float normalizedHealth = maxHealth > 0f
                 ? Mathf.Clamp01(currentHealth / maxHealth)
                 : 0f;
 
             if (healthSlider != null)
             {
-                seq.Append(healthSlider.DOValue(normalizedHealth, 0.1f).SetEase(Ease.OutCubic));
+                healthUiSequence.Append(
+                    healthSlider.DOValue(normalizedHealth, 0.1f)
+                        .SetEase(Ease.OutCubic));
             }
 
             if (bgHealthSlider != null)
             {
-                seq.AppendInterval(0.15f);
-                seq.Append(bgHealthSlider.DOValue(normalizedHealth, 0.1f).SetEase(Ease.OutCubic));
+                healthUiSequence.AppendInterval(0.15f);
+                healthUiSequence.Append(
+                    bgHealthSlider.DOValue(normalizedHealth, 0.1f)
+                        .SetEase(Ease.OutCubic));
             }
+        }
+
+        private void KillHealthUiSequence()
+        {
+            if (healthUiSequence != null && healthUiSequence.IsActive())
+            {
+                healthUiSequence.Kill(false);
+            }
+
+            healthUiSequence = null;
         }
 
         public virtual void Dead()

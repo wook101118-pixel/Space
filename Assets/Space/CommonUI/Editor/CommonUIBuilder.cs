@@ -29,13 +29,12 @@ namespace SpaceGame.CommonUI.Editor
         private const string RootFolder = "Assets/Space/CommonUI";
         private const string DataFolder = RootFolder + "/Data";
         private const string PrefabFolder = RootFolder + "/Prefabs";
-        private const string FontFolder = RootFolder + "/Fonts";
         private const string InputCatalogPath =
             DataFolder + "/InputBindingCatalog.asset";
         private const string TutorialSequencePath =
             DataFolder + "/MainTutorialSequence.asset";
         private const string FontAssetPath =
-            FontFolder + "/NotoSansKR CommonUI SDF.asset";
+            "Assets/Dev/CSU/06_Fonts/x10y12pxDenkiChipHangul SDF.asset";
         private const string BindingRowPath =
             PrefabFolder + "/InputBindingRow.prefab";
         private const string AudioMixerPath =
@@ -264,7 +263,7 @@ namespace SpaceGame.CommonUI.Editor
             }
 
             string[] fontGuids = AssetDatabase.FindAssets(
-                "NotoSansKR t:Font");
+                "x10y12pxDenkiChipHangul t:Font");
             Font sourceFont = fontGuids
                 .Select(AssetDatabase.GUIDToAssetPath)
                 .Select(AssetDatabase.LoadAssetAtPath<Font>)
@@ -272,19 +271,19 @@ namespace SpaceGame.CommonUI.Editor
             if (sourceFont == null)
             {
                 throw new InvalidOperationException(
-                    "NotoSansKR Font was not found in the project.");
+                    "x10y12pxDenkiChipHangul Font was not found in the project.");
             }
 
             TMP_FontAsset fontAsset = TMP_FontAsset.CreateFontAsset(
                 sourceFont,
-                64,
-                8,
+                39,
+                2,
                 GlyphRenderMode.SDFAA,
-                1024,
-                1024,
+                2048,
+                2048,
                 AtlasPopulationMode.Dynamic,
                 true);
-            fontAsset.name = "NotoSansKR CommonUI SDF";
+            fontAsset.name = "x10y12pxDenkiChipHangul SDF";
             AssetDatabase.CreateAsset(fontAsset, FontAssetPath);
 
             foreach (Texture2D texture in fontAsset.atlasTextures)
@@ -339,10 +338,8 @@ namespace SpaceGame.CommonUI.Editor
                     .OfType<InputActionReference>()
                     .ToArray();
 
-            InputAction cancelAction = actionAsset.actionMaps
-                .SelectMany(map => map.actions)
-                .FirstOrDefault(action => action.bindings.Any(binding =>
-                    (binding.path ?? string.Empty).Contains("{Cancel}")));
+            InputAction cancelAction =
+                actionAsset.FindAction("Common/Cancel", false);
             InputActionReference cancelReference =
                 cancelAction == null
                     ? null
@@ -352,44 +349,108 @@ namespace SpaceGame.CommonUI.Editor
             if (cancelReference == null)
             {
                 throw new InvalidOperationException(
-                    "The InputActionAsset has no persistent Cancel action reference.");
+                    "The InputActionAsset has no persistent Common/Cancel "
+                    + "action reference.");
             }
 
             var definitions = new List<InputBindingDefinition>();
-            InputAction moveAction = actionAsset.FindAction("Player/Move");
-            InputActionReference moveReference =
-                references.FirstOrDefault(reference =>
-                    reference.action != null &&
-                    reference.action.id == moveAction?.id);
-            if (moveAction == null || moveReference == null)
+            InputAction moveAction =
+                actionAsset.FindAction("Player/Move", false);
+            if (moveAction == null)
             {
                 throw new InvalidOperationException(
-                    "Player/Move Input Action 또는 영구 Action Reference가 없습니다.");
+                    "Player/Move Input Action이 없습니다.");
             }
 
-            AddMoveBinding(
+            AddCatalogBinding(
                 definitions,
-                moveAction,
-                moveReference,
+                actionAsset,
+                references,
+                "우주선 왼쪽 조작 - 기본 키",
+                "Player/Move",
+                "351f2ccd-1f9f-44bf-9bec-d62ac5c5f408",
+                "d2581a9b-1d11-4566-b27d-b92aff5fabbc",
                 "<Keyboard>/a",
-                "왼쪽 이동");
-            AddMoveBinding(
+                "Gameplay",
+                "MoveLeft");
+            AddCatalogBinding(
                 definitions,
-                moveAction,
-                moveReference,
+                actionAsset,
+                references,
+                "우주선 왼쪽 조작 - 보조 키",
+                "Player/Move",
+                "351f2ccd-1f9f-44bf-9bec-d62ac5c5f408",
+                "2e46982e-44cc-431b-9f0b-c11910bf467a",
+                "<Keyboard>/leftArrow",
+                "Gameplay",
+                "MoveLeft");
+            AddCatalogBinding(
+                definitions,
+                actionAsset,
+                references,
+                "우주선 오른쪽 조작 - 기본 키",
+                "Player/Move",
+                "351f2ccd-1f9f-44bf-9bec-d62ac5c5f408",
+                "fcfe95b8-67b9-4526-84b5-5d0bc98d6400",
                 "<Keyboard>/d",
-                "오른쪽 이동");
+                "Gameplay",
+                "MoveRight");
+            AddCatalogBinding(
+                definitions,
+                actionAsset,
+                references,
+                "우주선 오른쪽 조작 - 보조 키",
+                "Player/Move",
+                "351f2ccd-1f9f-44bf-9bec-d62ac5c5f408",
+                "77bff152-3580-4b21-b6de-dcd0c7e41164",
+                "<Keyboard>/rightArrow",
+                "Gameplay",
+                "MoveRight");
+            AddCatalogBinding(
+                definitions,
+                actionAsset,
+                references,
+                "기계 부품 회전",
+                "Player/RotateBlock",
+                "d885a2c2-2ff4-4b58-a3ad-cdf05dc28f6d",
+                "3d26de7f-cecf-445d-ad13-976140bb1d4c",
+                "<Keyboard>/r",
+                "Gameplay",
+                "RotateBlock");
+            AddCatalogBinding(
+                definitions,
+                actionAsset,
+                references,
+                "공통 취소 / 닫기",
+                "Common/Cancel",
+                "d2db7f26-9567-4f5e-8736-1f3c79d7cff1",
+                "bfd8db9d-e9ca-4ffd-8f64-66a4601e599b",
+                "<Keyboard>/escape",
+                "CommonUI",
+                "Cancel",
+                true);
+            AddCatalogBinding(
+                definitions,
+                actionAsset,
+                references,
+                "UI 클릭",
+                "UI/Click",
+                "3c7022bf-7922-4f7c-a998-c437916075ad",
+                "4faf7dc9-b979-4210-aa8c-e808e1ef89f5",
+                "<Mouse>/leftButton",
+                "UIPointer",
+                "Click");
 
-            if (definitions.Count != 2)
+            if (definitions.Count != 7)
             {
                 throw new InvalidOperationException(
-                    "Player/Move의 A/D Composite Binding을 찾지 못했습니다.");
+                    "7개의 키 설정 정의를 생성하지 못했습니다.");
             }
 
-            string[] gameplayMapIds = actionAsset.actionMaps
-                .Where(map => map.id != cancelAction.actionMap.id)
-                .Select(map => map.id.ToString())
-                .ToArray();
+            string[] gameplayMapIds =
+            {
+                moveAction.actionMap.id.ToString()
+            };
 
             var catalog =
                 ScriptableObject.CreateInstance<InputBindingCatalog>();
@@ -403,38 +464,67 @@ namespace SpaceGame.CommonUI.Editor
                     "<Keyboard>/printScreen",
                     "<Keyboard>/pause"
                 },
-                gameplayMapIds);
+                gameplayMapIds,
+                "Common/Cancel");
             AssetDatabase.CreateAsset(catalog, InputCatalogPath);
             EditorUtility.SetDirty(catalog);
             AssetDatabase.SaveAssets();
             return catalog;
         }
 
-        private static void AddMoveBinding(
+        private static void AddCatalogBinding(
             ICollection<InputBindingDefinition> definitions,
-            InputAction moveAction,
-            InputActionReference moveReference,
-            string defaultPath,
-            string displayName)
+            InputActionAsset actionAsset,
+            IEnumerable<InputActionReference> references,
+            string displayName,
+            string actionPath,
+            string expectedActionId,
+            string expectedBindingId,
+            string expectedControlPath,
+            string conflictGroup,
+            string logicalBinding,
+            bool reserved = false)
         {
-            int bindingIndex = moveAction.bindings.IndexOf(binding =>
-                binding.isPartOfComposite &&
-                string.Equals(
-                    binding.path,
-                    defaultPath,
-                    StringComparison.OrdinalIgnoreCase));
-            if (bindingIndex < 0)
+            InputAction action = actionAsset.FindAction(actionPath, false);
+            Guid actionId = Guid.Parse(expectedActionId);
+            if (action == null || action.id != actionId)
             {
-                return;
+                throw new InvalidOperationException(
+                    $"{actionPath} Input Action 또는 GUID가 일치하지 않습니다.");
             }
 
-            InputBinding binding = moveAction.bindings[bindingIndex];
+            InputActionReference actionReference = references.FirstOrDefault(
+                reference => reference.action != null &&
+                             reference.action.id == actionId);
+            if (actionReference == null)
+            {
+                throw new InvalidOperationException(
+                    $"{actionPath} 영구 Action Reference가 없습니다.");
+            }
+
+            Guid bindingId = Guid.Parse(expectedBindingId);
+            int bindingIndex = action.bindings.IndexOf(binding =>
+                binding.id == bindingId);
+            if (bindingIndex < 0 ||
+                !string.Equals(
+                    action.bindings[bindingIndex].path,
+                    expectedControlPath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    $"{actionPath}의 {expectedControlPath} Binding 또는 "
+                    + "GUID가 일치하지 않습니다.");
+            }
+
             var definition = new InputBindingDefinition();
             definition.Configure(
                 displayName,
-                moveReference,
-                binding.id.ToString(),
-                "Keyboard&Mouse");
+                actionReference,
+                bindingId.ToString(),
+                "Keyboard&Mouse",
+                conflictGroup,
+                logicalBinding,
+                reserved);
             definitions.Add(definition);
         }
 
@@ -451,18 +541,22 @@ namespace SpaceGame.CommonUI.Editor
             var pages = new List<TutorialPageData>();
             pages.Add(CreateTutorialPage(
                 "TutorialPage_01.asset",
-                "환영합니다",
-                "이 페이지의 제목, 본문, 이미지는 TutorialPageData 에셋에서 " +
-                "자유롭게 교체할 수 있습니다."));
+                "로켓 준비",
+                "자원으로 엔진·연료·선체·드릴을 강화하고 부품을 4×4 " +
+                "보드에 배치하세요. 부품을 드래그하는 동안 R 키로 " +
+                "회전하고 Esc 키로 취소할 수 있습니다."));
             pages.Add(CreateTutorialPage(
                 "TutorialPage_02.asset",
-                "조작 확인",
-                "현재 키 설정은 단축키 안내창과 설정창이 동일한 " +
-                "InputBindingCatalog를 읽어 표시합니다."));
+                "비행 조작",
+                "A/D 또는 ←/→ 키로 로켓을 좌우로 움직여 장애물을 " +
+                "피하세요. 연료와 선체 상태를 확인하면서 더 먼 거리를 " +
+                "목표로 하세요."));
             pages.Add(CreateTutorialPage(
                 "TutorialPage_03.asset",
-                "준비 완료",
-                "마지막 페이지에서는 다음 버튼 대신 시작 버튼이 표시됩니다."));
+                "일시정지와 설정",
+                "비행 중 Esc 키를 누르면 일시정지 메뉴가 열립니다. " +
+                "설정에서 좌우 이동 키와 음량, 화면 옵션을 바꿀 수 " +
+                "있습니다."));
 
             var sequence =
                 ScriptableObject.CreateInstance<TutorialSequenceData>();
@@ -517,6 +611,7 @@ namespace SpaceGame.CommonUI.Editor
                 18,
                 TextAlignmentOptions.MidlineLeft,
                 TextColor);
+            name.margin = new Vector4(13.5f, 0f, 0f, 0f);
             AddLayoutElement(name.gameObject, 48f, 260f, 1f);
 
             TextMeshProUGUI binding = CreateText(
@@ -684,6 +779,7 @@ namespace SpaceGame.CommonUI.Editor
                 font,
                 "해상도");
 
+            CreateSectionLabel(bodyContent, font, "키 설정");
             RectTransform bindingHeader = CreateHorizontalContainer(
                 "BindingHeader",
                 bodyContent,
@@ -1302,7 +1398,14 @@ namespace SpaceGame.CommonUI.Editor
                 AssetDatabase.LoadAllAssetsAtPath(actionAssetPath)
                     .OfType<InputActionReference>()
                     .ToArray();
-            Guid uiMapId = catalog.CancelAction.action.actionMap.id;
+            InputActionMap uiMap = actionAsset.FindActionMap("UI", false);
+            if (uiMap == null)
+            {
+                throw new InvalidOperationException(
+                    "The InputActionAsset has no UI action map.");
+            }
+
+            Guid uiMapId = uiMap.id;
 
             InputActionReference FindReference(
                 Func<InputBinding, bool> bindingPredicate)
@@ -1323,15 +1426,18 @@ namespace SpaceGame.CommonUI.Editor
             module.point = FindReference(binding =>
                 (binding.path ?? string.Empty)
                 .Contains("<Mouse>/position"));
-            module.move = FindReference(binding =>
-                binding.isComposite &&
-                string.Equals(
-                    binding.path,
-                    "2DVector",
-                    StringComparison.OrdinalIgnoreCase));
+            InputAction navigateAction = uiMap.FindAction(
+                "Navigate",
+                false);
+            module.move = navigateAction == null
+                ? null
+                : references.FirstOrDefault(reference =>
+                    reference.action != null
+                    && reference.action.id == navigateAction.id);
             module.submit = FindReference(binding =>
                 (binding.path ?? string.Empty).Contains("{Submit}"));
-            module.cancel = catalog.CancelAction;
+            module.cancel = FindReference(binding =>
+                (binding.path ?? string.Empty).Contains("{Cancel}"));
             module.leftClick = FindReference(binding =>
                 (binding.path ?? string.Empty)
                 .Contains("<Mouse>/leftButton"));
@@ -1578,7 +1684,7 @@ namespace SpaceGame.CommonUI.Editor
                 "Checkmark",
                 toggleObject.transform,
                 font,
-                "✓",
+                "■",
                 24,
                 TextAlignmentOptions.Center,
                 AccentColor);
@@ -1704,7 +1810,7 @@ namespace SpaceGame.CommonUI.Editor
                 16,
                 TextAlignmentOptions.MidlineLeft,
                 TextColor);
-            SetStretch(itemLabel.rectTransform, 10f);
+            SetStretch(itemLabel.rectTransform, 10f, 10f, 2f, 2f);
             Toggle itemToggle = itemObject.GetComponent<Toggle>();
             itemToggle.targetGraphic = itemBackground;
             itemToggle.graphic = itemBackground;
